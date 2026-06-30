@@ -1,0 +1,31 @@
+"""Tests for prompt construction and loss masking. Fail until the TODOs in data/squad.py are filled."""
+from transformers import AutoTokenizer
+
+from himole.data.squad import build_prompt, format_example
+
+TOK = AutoTokenizer.from_pretrained("sshleifer/tiny-gpt2")
+if TOK.pad_token is None:
+    TOK.pad_token = TOK.eos_token
+
+
+def test_prompt_excludes_answer():
+    p = build_prompt("Paris is the capital of France.", "What is the capital of France?")
+    assert "France" in p and "Paris" in p
+    assert "Answer:" in p          # template marks where the answer goes
+    assert p.rstrip().endswith("Answer:")  # prompt stops before the answer text
+
+
+def test_labels_mask_prompt_tokens():
+    ex = {"context": "Paris is the capital of France.",
+          "question": "What is the capital of France?",
+          "answers": {"text": ["Paris"]}}
+    out = format_example(ex, TOK, cutoff_len=64)
+    assert set(out.keys()) >= {"input_ids", "attention_mask", "labels"}
+    assert len(out["input_ids"]) == len(out["labels"])
+    # at least one masked (prompt) and one unmasked (answer) label
+    assert any(l == -100 for l in out["labels"])
+    assert any(l != -100 for l in out["labels"])
+    # every unmasked label must equal the corresponding input id (next-token target)
+    for i, l in enumerate(out["labels"]):
+        if l != -100:
+            assert l == out["input_ids"][i]
