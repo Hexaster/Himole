@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiMoLE · Build 1 Map — Plain-LoRA Baseline</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --ink:#e6e9ef; --mut:#9aa4b2;
+    --line:#2a2f3a; --acc:#7aa2f7; --good:#7ee787; --warn:#f0b86e; --todo:#f7768e;
+    --code:#0b0d11; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--acc);text-decoration:none} a:hover{text-decoration:underline}
+  code,kbd,pre{font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  code{background:var(--code);border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:.86em}
+  .wrap{max-width:980px;margin:0 auto;padding:40px 22px 90px}
+  header h1{font-size:30px;margin:0 0 6px;letter-spacing:-.3px}
+  header p{color:var(--mut);margin:0}
+  .badge{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    color:var(--mut);border-radius:999px;padding:3px 10px;font-size:12px;margin-right:6px}
+  .progwrap{margin:22px 0 8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;height:14px;overflow:hidden}
+  .progbar{height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--good));transition:width .3s}
+  .progtxt{color:var(--mut);font-size:13px;margin-bottom:30px}
+  section{margin:34px 0}
+  h2{font-size:21px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:18px 0 8px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+  .pipe{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px}
+  .step b{color:var(--acc)} .arrow{color:var(--mut)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  .tag{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;white-space:nowrap}
+  .tag.w{background:rgba(126,231,135,.13);color:var(--good);border:1px solid rgba(126,231,135,.3)}
+  .tag.t{background:rgba(247,118,142,.13);color:var(--todo);border:1px solid rgba(247,118,142,.3)}
+  ol.read{padding-left:20px} ol.read li{margin:6px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--todo);
+    border-radius:var(--radius);padding:18px 20px;margin:16px 0}
+  .card.done{border-left-color:var(--good);opacity:.78}
+  .card h3{display:flex;align-items:center;gap:10px;margin-top:0;font-size:17px}
+  .card h3 .n{background:var(--todo);color:#0b0d11;font-weight:800;border-radius:8px;
+    width:26px;height:26px;display:inline-grid;place-items:center;font-size:14px}
+  .card.done h3 .n{background:var(--good)}
+  .chk{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
+  .chk input{width:18px;height:18px;accent-color:var(--good);cursor:pointer}
+  .meta{font-size:13px;color:var(--mut);margin:2px 0 12px}
+  .gotcha{background:rgba(240,184,110,.08);border:1px solid rgba(240,184,110,.3);
+    border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px}
+  .gotcha b{color:var(--warn)}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font-size:13px;line-height:1.5}
+  .verify{font-size:13px;color:var(--mut);margin-top:10px}
+  .verify code{color:var(--good)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:680px){.grid2{grid-template-columns:1fr}}
+  .gloss dt{color:var(--acc);font-weight:700;margin-top:10px}
+  .gloss dd{margin:2px 0 0;color:var(--mut);font-size:14px}
+  footer{margin-top:50px;color:var(--mut);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
+  .ascii{color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>HiMoLE · Build 1 Map</h1>
+  <p>Plain-LoRA baseline on SQuAD — your guide to reading the scaffold and filling the 5 TODOs.</p>
+  <div style="margin-top:12px">
+    <span class="badge">branch: build1-baseline-lora</span>
+    <span class="badge">base: Llama-2-7B</span>
+    <span class="badge">task: EQA / SQuAD &rarr; NewsQA (OOD)</span>
+    <span class="badge">LoRA r=80 &alpha;=160</span>
+  </div>
+</header>
+
+<div class="progwrap"><div class="progbar" id="bar"></div></div>
+<div class="progtxt" id="ptxt">0 / 5 TODOs complete — progress is saved in this browser.</div>
+
+<!-- ============ BIG PICTURE ============ -->
+<section>
+  <h2>1 · The big picture</h2>
+  <div class="panel">
+    <p style="margin-top:0">You take a <b>frozen</b> Llama-2-7B, bolt on tiny trainable <b>LoRA</b>
+    adapters, and fine-tune them on SQuAD so the model answers questions. Then you measure how well it
+    does on SQuAD (in-distribution) and on NewsQA (out-of-distribution). Nothing HiMoLE-specific yet —
+    this is the baseline the real method will be compared against.</p>
+    <h3>Data flow (what happens at runtime)</h3>
+    <div class="pipe">
+      <span class="step"><b>SQuAD</b> example</span><span class="arrow">&rarr;</span>
+      <span class="step">build <b>prompt</b></span><span class="arrow">&rarr;</span>
+      <span class="step">tokenize + <b>loss mask</b></span><span class="arrow">&rarr;</span>
+      <span class="step">batch (<b>collate</b>)</span><span class="arrow">&rarr;</span>
+      <span class="step"><b>train step</b> on LoRA</span><span class="arrow">&rarr;</span>
+      <span class="step"><b>generate</b> answers</span><span class="arrow">&rarr;</span>
+      <span class="step"><b>EM / ROUGE-2</b></span>
+    </div>
+    <p class="meta">Each box maps to a function in the package. The bold ones with TODOs are yours.</p>
+  </div>
+</section>
+
+<!-- ============ READING ORDER ============ -->
+<section>
+  <h2>2 · Read first, in this order</h2>
+  <div class="panel">
+    <p style="margin-top:0">Before writing anything, skim these to build a mental model. Reading order
+    is <i>top-down by concept</i>; implementation order (next section) is <i>bottom-up by dependency</i>.</p>
+    <ol class="read">
+      <li><a href="../README.md">README.md</a> — how to run, the TODO checklist.</li>
+      <li><a href="../himole/config.py">himole/config.py</a> — every hyperparameter in one dataclass. Skim it so the names later make sense.</li>
+      <li><a href="../notebooks/01_baseline_lora.ipynb">notebooks/01_baseline_lora.ipynb</a> — the same journey, cell by cell, on a tiny model. <b>Your main companion.</b></li>
+      <li><a href="../himole/data/squad.py">himole/data/squad.py</a> — where data becomes tensors (TODO #1 lives here).</li>
+      <li><a href="../himole/train/loop.py">himole/train/loop.py</a> — the whole training loop; read it to see how the pieces connect.</li>
+      <li><a href="../himole/eval/generate.py">himole/eval/generate.py</a> &amp; <a href="../himole/eval/metrics.py">metrics.py</a> — how answers are produced and scored.</li>
+      <li><a href="../scripts/train_baseline.py">scripts/train_baseline.py</a> — the entry point that wires everything for the real run.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ FILE MAP ============ -->
+<section>
+  <h2>3 · File map</h2>
+  <div class="panel" style="padding:6px 8px">
+  <table>
+    <tr><th>File</th><th>Role</th><th>Status</th></tr>
+    <tr><td><a href="../himole/config.py">himole/config.py</a></td><td>All hyperparameters (paper Table 7)</td><td><span class="tag w">written</span></td></tr>
+    <tr><td><a href="../himole/utils.py">himole/utils.py</a></td><td>seed / device / logger</td><td><span class="tag w">written</span></td></tr>
+    <tr><td><a href="../himole/data/squad.py">himole/data/squad.py</a></td><td>prompt + loss mask, dataset loading</td><td><span class="tag t">TODO #1</span></td></tr>
+    <tr><td><a href="../himole/data/newsqa.py">himole/data/newsqa.py</a></td><td>OOD eval pairs</td><td><span class="tag t">TODO #5</span></td></tr>
+    <tr><td><a href="../himole/model/baseline_lora.py">himole/model/baseline_lora.py</a></td><td>load base model + attach LoRA</td><td><span class="tag t">TODO #3</span></td></tr>
+    <tr><td><a href="../himole/train/loop.py">himole/train/loop.py</a></td><td>collate + training loop</td><td><span class="tag t">TODO #4</span></td></tr>
+    <tr><td><a href="../himole/eval/metrics.py">himole/eval/metrics.py</a></td><td>EM + ROUGE-2 scoring</td><td><span class="tag t">TODO #2</span></td></tr>
+    <tr><td><a href="../himole/eval/generate.py">himole/eval/generate.py</a></td><td>generation + eval harness</td><td><span class="tag w">written</span></td></tr>
+    <tr><td><a href="../scripts/train_baseline.py">scripts/train_baseline.py</a></td><td>server entry point</td><td><span class="tag w">written</span></td></tr>
+    <tr><td><a href="../tests/test_data_masking.py">tests/test_data_masking.py</a></td><td>checks TODO #1</td><td><span class="tag w">written</span></td></tr>
+    <tr><td><a href="../tests/test_metrics.py">tests/test_metrics.py</a></td><td>checks TODO #2</td><td><span class="tag w">written</span></td></tr>
+  </table>
+  </div>
+</section>
+
+<!-- ============ IMPLEMENTATION ROADMAP ============ -->
+<section>
+  <h2>4 · Implementation roadmap (the 5 TODOs)</h2>
+  <p class="meta">Do them in this order — each builds on the last. Tick the box when its test passes.</p>
+
+  <!-- TODO 1 -->
+  <div class="card" id="card1">
+    <h3><span class="n">1</span> Prompt + loss mask
+      <span class="chk"><label for="c1">done</label><input type="checkbox" id="c1"></span></h3>
+    <div class="meta">File: <a href="../himole/data/squad.py">himole/data/squad.py</a> · functions <code>build_prompt</code>, <code>format_example</code></div>
+    <p><b>Why it matters:</b> a causal LM is trained to predict the next token. If you score loss on the
+    whole prompt+answer, you also teach it to generate the <i>prompt</i> — you don't want that. You want
+    loss <b>only on the answer</b>. The mask is how.</p>
+    <h3>build_prompt</h3>
+    <p>Fill <code>PROMPT_TEMPLATE</code> with <code>context</code> + <code>question</code>, return the string. It already ends with <code>Answer:</code> (no trailing space).</p>
+    <h3>format_example — the 5 steps</h3>
+    <ol class="read">
+      <li>Tokenize <code>prompt</code> alone &rarr; <code>prompt_ids</code> (you need its <b>length</b>).</li>
+      <li>Tokenize <code>prompt + answer</code> &rarr; this is your <code>input_ids</code>.</li>
+      <li><code>labels</code> = a copy of <code>input_ids</code>, then set the first <code>len(prompt_ids)</code> entries to <code>-100</code>.</li>
+      <li><code>attention_mask</code> = all <code>1</code>s (padding happens later in the collator).</li>
+      <li>Return <code>{"input_ids","attention_mask","labels"}</code> as lists; respect <code>cutoff_len</code>.</li>
+    </ol>
+    <div class="gotcha"><b>Gotcha A — add_special_tokens=False.</b> Tokenize both strings with no auto BOS/EOS, so <code>prompt_ids</code> is a clean prefix of <code>input_ids</code> and your mask length is exact.</div>
+    <div class="gotcha"><b>Gotcha B — keep the leading space</b> on <code>answer = " " + ...</code>. BPE encodes "Paris" vs " Paris" differently; the space keeps the prefix consistent.</div>
+    <div class="gotcha"><b>Gotcha C — do NOT shift labels.</b> HuggingFace shifts internally (logits at <code>i</code> vs label <code>i+1</code>). Labels are just a masked copy at the same indices. The test asserts <code>labels[i] == input_ids[i]</code> for unmasked positions.</div>
+<pre class="ascii">tokens:  Answer the question ... Answer:   _Paris  &lt;eos&gt;
+labels:  -100  -100  -100  ...   -100      _Paris  &lt;eos&gt;
+         |&lt;-------- masked (prompt) ------&gt;||&lt;- scored ->|</pre>
+    <div class="verify">Verify: <code>pytest tests/test_data_masking.py -v</code></div>
+  </div>
+
+  <!-- TODO 2 -->
+  <div class="card" id="card2">
+    <h3><span class="n">2</span> EM + ROUGE-2 metrics
+      <span class="chk"><label for="c2">done</label><input type="checkbox" id="c2"></span></h3>
+    <div class="meta">File: <a href="../himole/eval/metrics.py">himole/eval/metrics.py</a> · 4 functions</div>
+    <p>Four small functions, each one or two lines once you see it:</p>
+    <ol class="read">
+      <li><code>normalize_answer(s)</code> — SQuAD style: lowercase &rarr; remove punctuation &rarr; drop articles (<code>a/an/the</code>) &rarr; collapse whitespace. So "The Paris," and "paris" compare equal.</li>
+      <li><code>exact_match(pred, gold)</code> — <code>float(normalize_answer(pred) == normalize_answer(gold))</code>.</li>
+      <li><code>rouge2(pred, gold)</code> — use the module-level <code>_SCORER</code>: <code>_SCORER.score(gold, pred)["rouge2"].fmeasure</code>.</li>
+      <li><code>score_batch(preds, golds)</code> — average EM and ROUGE-2 over all pairs, return <code>{"em":..,"rouge2":..}</code>.</li>
+    </ol>
+    <div class="gotcha"><b>Tip:</b> build the normalizer as 4 tiny steps with <code>re.sub</code>. Mind the order: lowercase before stripping articles.</div>
+    <div class="verify">Verify: <code>pytest tests/test_metrics.py -v</code></div>
+  </div>
+
+  <!-- TODO 3 -->
+  <div class="card" id="card3">
+    <h3><span class="n">3</span> Attach LoRA
+      <span class="chk"><label for="c3">done</label><input type="checkbox" id="c3"></span></h3>
+    <div class="meta">File: <a href="../himole/model/baseline_lora.py">himole/model/baseline_lora.py</a> · function <code>attach_lora</code></div>
+    <p>Build a <code>LoraConfig</code> and wrap the frozen model with it. The fields come straight from <code>cfg</code>:</p>
+    <ol class="read">
+      <li><code>r=cfg.lora_r</code>, <code>lora_alpha=cfg.lora_alpha</code>, <code>lora_dropout=cfg.lora_dropout</code></li>
+      <li><code>target_modules=targets</code> (already computed above — tiny model vs Llama FFN names)</li>
+      <li><code>task_type="CAUSAL_LM"</code>, <code>bias="none"</code></li>
+      <li><code>peft_model = get_peft_model(model, lora_config)</code></li>
+      <li><code>peft_model.print_trainable_parameters()</code> then <code>return peft_model</code></li>
+    </ol>
+    <div class="gotcha"><b>What to look for:</b> the printed trainable % should be tiny (about 0.1–1%). That's the whole point of LoRA — you train a sliver, the base stays frozen.</div>
+    <div class="verify">Verify: no unit test; in the notebook run the "Attach LoRA" cell and read the printed trainable parameters.</div>
+  </div>
+
+  <!-- TODO 4 -->
+  <div class="card" id="card4">
+    <h3><span class="n">4</span> The training step
+      <span class="chk"><label for="c4">done</label><input type="checkbox" id="c4"></span></h3>
+    <div class="meta">File: <a href="../himole/train/loop.py">himole/train/loop.py</a> · inside <code>train</code>, the inner loop</div>
+    <p>The heart of fine-tuning — five lines:</p>
+    <ol class="read">
+      <li><code>outputs = model(**batch)</code> — HF computes the masked cross-entropy for you (it reads <code>labels</code>).</li>
+      <li><code>loss = outputs.loss</code></li>
+      <li><code>loss.backward()</code> — gradients flow into the LoRA params only.</li>
+      <li><code>optimizer.step()</code></li>
+      <li><code>optimizer.zero_grad()</code></li>
+    </ol>
+    <div class="gotcha"><b>Remove the <code>raise</code> line</b> when you implement, and make sure your code runs <i>before</i> the <code>step += 1</code> / eval block that follows it (which is already written).</div>
+    <div class="verify">Verify: smoke test (below) should now train without raising.</div>
+  </div>
+
+  <!-- TODO 5 -->
+  <div class="card" id="card5">
+    <h3><span class="n">5</span> OOD loader (NewsQA)
+      <span class="chk"><label for="c5">done</label><input type="checkbox" id="c5"></span></h3>
+    <div class="meta">File: <a href="../himole/data/newsqa.py">himole/data/newsqa.py</a> · function <code>load_newsqa</code></div>
+    <p>Return a list of <code>{"prompt", "gold"}</code> dicts (no loss mask — this is eval only):</p>
+    <ol class="read">
+      <li>Load a NewsQA dataset from the Hub (e.g. <code>lucadiliello/newsqa</code> or a mirror — verify the field names of whatever you pick).</li>
+      <li>For each example: <code>{"prompt": build_prompt(context, question), "gold": first_answer_text}</code>.</li>
+      <li>Respect <code>cfg.max_train_samples</code> so smoke tests stay tiny.</li>
+    </ol>
+    <div class="gotcha"><b>Reuse, don't redefine:</b> import <code>build_prompt</code> from <code>squad.py</code> (already done at the top) so ID and OOD use the identical prompt format — otherwise the comparison isn't fair.</div>
+    <div class="verify">Verify: run the entry script's OOD line, or print the first pair in the notebook.</div>
+  </div>
+</section>
+
+<!-- ============ COMMANDS ============ -->
+<section>
+  <h2>5 · Commands cheat-sheet</h2>
+  <div class="grid2">
+    <div class="panel">
+      <h3 style="margin-top:0">Setup (on the server)</h3>
+<pre>pip install -r requirements.txt</pre>
+      <h3>Run one test (red &rarr; green)</h3>
+<pre>pytest tests/test_data_masking.py -v
+pytest tests/test_metrics.py -v
+pytest -v          # everything</pre>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">Smoke test (tiny model, seconds)</h3>
+<pre>python scripts/train_baseline.py \
+    --tiny --steps 5 --samples 8</pre>
+      <h3>Real run (after all TODOs)</h3>
+<pre>python scripts/train_baseline.py</pre>
+      <p class="meta">Real run uses Llama-2-7B (gated — needs your HF access).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GLOSSARY ============ -->
+<section>
+  <h2>6 · Mini-glossary</h2>
+  <div class="panel">
+    <dl class="gloss">
+      <dt>LoRA</dt><dd>Freeze base weight W, learn a low-rank update: W' = W + (&alpha;/r)·B·A. Only A and B train.</dd>
+      <dt>rank r / alpha &alpha;</dt><dd>r = size of the bottleneck (capacity). &alpha; = scaling. Here r=80, &alpha;=160 to match HiMoLE's trainable-param budget.</dd>
+      <dt>loss mask (-100)</dt><dd>PyTorch cross-entropy ignores label positions set to -100. We mask the prompt so only answer tokens train.</dd>
+      <dt>EM</dt><dd>Exact Match — 1 if the normalized prediction equals the normalized gold answer, else 0.</dd>
+      <dt>ROUGE-2</dt><dd>Overlap of 2-grams between prediction and gold; a softer score than EM.</dd>
+      <dt>ID / OOD</dt><dd>In-distribution (SQuAD) vs out-of-distribution (NewsQA) — OOD is the robustness HiMoLE targets.</dd>
+    </dl>
+  </div>
+</section>
+
+<section>
+  <h2>7 · After Build 1</h2>
+  <div class="panel">
+    <p style="margin:0">Once the smoke test trains and both test files are green, you've learned the full LoRA
+    fine-tuning loop. Next is <b>Build 2 — the HiMoLE hierarchical-routing FFN layer</b> (the novel part:
+    sentence + token routers, N×M experts, top-k). That gets its own design &rarr; plan &rarr; build cycle.</p>
+  </div>
+</section>
+
+<footer>
+  HiMoLE study reimplementation · Build 1 map · generated for the build1-baseline-lora branch.
+  Progress checkboxes are stored locally in your browser (localStorage).
+</footer>
+
+</div>
+
+<script>
+  var ids = ["c1","c2","c3","c4","c5"];
+  function refresh(){
+    var done = 0;
+    ids.forEach(function(id){
+      var box = document.getElementById(id);
+      var card = document.getElementById("card"+id.slice(1));
+      if(box.checked){ done++; card.classList.add("done"); } else { card.classList.remove("done"); }
+    });
+    document.getElementById("bar").style.width = (done/ids.length*100)+"%";
+    document.getElementById("ptxt").textContent =
+      done+" / "+ids.length+" TODOs complete — progress is saved in this browser.";
+  }
+  ids.forEach(function(id){
+    var box = document.getElementById(id);
+    box.checked = localStorage.getItem("himole_b1_"+id) === "1";
+    box.addEventListener("change", function(){
+      localStorage.setItem("himole_b1_"+id, box.checked ? "1" : "0");
+      refresh();
+    });
+  });
+  refresh();
+</script>
+</body>
+</html>
