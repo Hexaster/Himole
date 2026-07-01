@@ -8,22 +8,28 @@ def normalize_answer(s: str) -> str:
     """Lowercase, remove punctuation, articles (a/an/the), and extra whitespace."""
     # TODO: implement SQuAD normalization:
     #   lower -> remove punctuation -> remove a/an/the -> collapse whitespace.
-    raise NotImplementedError("TODO: implement SQuAD answer normalization")
+    #raise NotImplementedError("TODO: implement SQuAD answer normalization")
+    s_lower = s.lower()
+    s_no_punct = ''.join(c for c in s_lower if c.isalnum() or c.isspace())
+    s_no_articles = ' '.join(word for word in s_no_punct.split() if word not in ('a', 'an', 'the'))
+    s_normalized = ' '.join(s_no_articles.split())
+    return s_normalized
 
 
 def exact_match(pred: str, gold: str) -> float:
     """1.0 if normalized strings match exactly, else 0.0."""
-    # TODO: return float(normalize_answer(pred) == normalize_answer(gold))
-    raise NotImplementedError("TODO: implement exact match")
+    return float(normalize_answer(pred) == normalize_answer(gold))
+    #raise NotImplementedError("TODO: implement exact match")
 
 
 def rouge2(pred: str, gold: str) -> float:
     """ROUGE-2 F-measure between pred and gold."""
-    # TODO: return _SCORER.score(gold, pred)["rouge2"].fmeasure
-    raise NotImplementedError("TODO: implement rouge2")
+    return _SCORER.score(gold, pred)["rouge2"].fmeasure
+    #raise NotImplementedError("TODO: implement rouge2")
 
 
 def score_batch(preds, golds) -> dict:
     """Mean EM and ROUGE-2 over a list of predictions/golds."""
-    # TODO: average exact_match and rouge2 over all pairs; return {"em":..,"rouge2":..}.
-    raise NotImplementedError("TODO: implement batch scoring")
+    em_scores = [exact_match(p, g) for p, g in zip(preds, golds)]
+    rouge2_scores = [rouge2(p, g) for p, g in zip(preds, golds)]
+    return {"em": sum(em_scores) / len(em_scores), "rouge2": sum(rouge2_scores) / len(rouge2_scores)}

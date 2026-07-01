@@ -1,0 +1,10 @@
+# Build 1 progress ledger
+Task 1: complete (commit 2c8d99e, scaffold/config/utils; config import OK)
+Task 2: complete (commit 805713a, data scaffold + masking tests; py_compile OK; functional pytest = server-side, deps not local)
+Task 3: complete (commit f8bd0c7, metrics + tests; py_compile OK; functional pytest = server-side)
+Task 4: complete (commit ada3e80, model loader; py_compile OK)
+Task 5: complete (commit 1574895, generation+eval harness; py_compile OK)
+Task 6: complete (commit 9b2fbaa, training loop; py_compile OK)
+Task 7: complete (commit 9335223, entry script; py_compile OK)
+Task 8: complete (commit 22ac791, teaching notebook; JSON valid)
+Task 9: complete (commit 03ac91a, README)

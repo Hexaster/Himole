@@ -19,8 +19,8 @@ PROMPT_TEMPLATE = (
 
 def build_prompt(context: str, question: str) -> str:
     """Return the prompt (no answer). Used for both training and generation."""
-    # TODO: format PROMPT_TEMPLATE with context/question and return it.
-    raise NotImplementedError("TODO: build the prompt from PROMPT_TEMPLATE")
+    return PROMPT_TEMPLATE.format(context=context, question=question)
+
 
 
 def format_example(example: dict, tokenizer, cutoff_len: int) -> dict:
@@ -29,11 +29,23 @@ def format_example(example: dict, tokenizer, cutoff_len: int) -> dict:
     answer = " " + example["answers"]["text"][0] + tokenizer.eos_token
     # TODO (the core learning point):
     #   1. tokenize `prompt` and `prompt + answer` (no special tokens) up to cutoff_len.
+    prompt_ids = tokenizer(prompt, add_special_tokens=False, truncation=True, max_length=cutoff_len).input_ids
     #   2. input_ids = ids of (prompt + answer).
+    input_ids = tokenizer(prompt + answer, add_special_tokens=False, truncation=True, max_length=cutoff_len).input_ids
+
     #   3. labels = copy of input_ids, but set the FIRST len(prompt_ids) labels to -100.
+    labels = input_ids.copy()
+    labels[:len(prompt_ids)] = [-100] * len(prompt_ids)
+
     #   4. attention_mask = all 1s (we pad later in the collator).
+    attention_mask = [1] * len(input_ids)
     #   5. return {"input_ids", "attention_mask", "labels"}.
-    raise NotImplementedError("TODO: tokenize and build the loss mask")
+    return {
+        "input_ids": input_ids,
+        "attention_mask": attention_mask,
+        "labels": labels
+    }
+    #raise NotImplementedError("TODO: tokenize and build the loss mask")
 
 
 def load_squad(tokenizer, cfg):

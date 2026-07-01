@@ -1,0 +1,21 @@
+# Makes `himole` an installable package so `import himole` works everywhere
+# (notebooks, scripts/, pytest) regardless of the current working directory.
+# Install once, in editable mode, from the repo root:   pip install -e .
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "himole"
+version = "0.0.1"
+description = "Study reimplementation of HiMoLE (Hierarchical Mixture of LoRA Experts)"
+requires-python = ">=3.8"
+dynamic = ["dependencies"]
+
+# Only ship the `himole` package (not notebooks/, scripts/, tests/, paper/).
+[tool.setuptools.packages.find]
+include = ["himole*"]
+
+# Reuse the existing requirements.txt as the dependency list.
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }

@@ -30,4 +30,15 @@ def attach_lora(model, cfg):
     #   target_modules=targets, task_type="CAUSAL_LM", bias="none".
     #   Then peft_model = get_peft_model(model, lora_config).
     #   Finally peft_model.print_trainable_parameters() and return peft_model.
-    raise NotImplementedError("TODO: build LoraConfig and wrap with get_peft_model")
+    #raise NotImplementedError("TODO: build LoraConfig and wrap with get_peft_model")
+    lora_config = LoraConfig(
+        r=cfg.lora_r,
+        lora_alpha=cfg.lora_alpha,
+        lora_dropout=cfg.lora_dropout,
+        target_modules=targets,
+        task_type="CAUSAL_LM",
+        bias="none"
+    )
+    peft_model = get_peft_model(model, lora_config)
+    peft_model.print_trainable_parameters()
+    return peft_model

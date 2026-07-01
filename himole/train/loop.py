@@ -48,8 +48,12 @@ def train(model, tokenizer, train_ds, val_eval_pairs, cfg):
             #   3. loss.backward()
             #   4. optimizer.step()
             #   5. optimizer.zero_grad()
-            raise NotImplementedError("TODO: implement the forward/backward/step")
-
+            #raise NotImplementedError("TODO: implement the forward/backward/step")
+            outputs = model(**batch)  # HF returns outputs.loss (CE on labels)
+            loss = outputs.loss
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
             step += 1
             if step % cfg.eval_every == 0:                 # periodic eval + early stop
                 metrics = evaluate(model, tokenizer, val_eval_pairs)

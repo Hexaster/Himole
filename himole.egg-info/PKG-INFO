@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: himole
+Version: 0.0.1
+Summary: Study reimplementation of HiMoLE (Hierarchical Mixture of LoRA Experts)
+Requires-Python: >=3.8
+Requires-Dist: torch>=2.0
+Requires-Dist: transformers>=4.38
+Requires-Dist: peft>=0.9
+Requires-Dist: datasets>=2.16
+Requires-Dist: evaluate>=0.4
+Requires-Dist: rouge-score>=0.1.2
+Requires-Dist: accelerate>=0.27
+Requires-Dist: pytest>=7
