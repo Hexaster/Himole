@@ -24,6 +24,7 @@ class BaselineConfig:
     # --- optim / loop ---
     lr: float = 3e-4          # TODO: paper does not isolate the plain-LoRA LR; confirm.
     batch_size: int = 16
+    eval_batch_size: int = 8
     max_steps: int = 10000
     eval_every: int = 50
     early_stop_patience: int = 10  # number of stale evals before stopping
