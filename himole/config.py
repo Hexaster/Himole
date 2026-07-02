@@ -5,7 +5,7 @@ from dataclasses import dataclass
 @dataclass
 class BaselineConfig:
     # --- models ---
-    base_model: str = "meta-llama/Llama-2-7b-hf"   # real run (gated)
+    base_model: str = "Qwen/Qwen2.5-7B"  # real run (ungated, Apache-2.0; Llama-2-7B stand-in)
     tiny_model: str = "sshleifer/tiny-gpt2"        # smoke test / notebook
     use_tiny: bool = False                          # flip True for fast local runs
 
@@ -25,7 +25,7 @@ class BaselineConfig:
     lr: float = 3e-4          # TODO: paper does not isolate the plain-LoRA LR; confirm.
     batch_size: int = 16
     max_steps: int = 10000
-    eval_every: int = 1
+    eval_every: int = 50
     early_stop_patience: int = 10  # number of stale evals before stopping
     seed: int = 42
 
