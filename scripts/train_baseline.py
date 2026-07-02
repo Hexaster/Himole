@@ -34,7 +34,7 @@ def main():
     set_seed(cfg.seed)
 
     tokenizer = load_tokenizer(cfg)
-    model = attach_lora(load_base_model(cfg), cfg)
+    base_model = load_base_model(cfg)
 
     train_ds, _ = load_squad(tokenizer, cfg)
 
@@ -44,12 +44,16 @@ def main():
         raw_val = raw_val.select(range(cfg.max_train_samples))
     id_pairs = [{"prompt": build_prompt(e["context"], e["question"]),
                  "gold": e["answers"]["text"][0]} for e in raw_val]
+    ood_pairs = load_newsqa(tokenizer, cfg)
 
+    print("BASE MODEL ID (SQuAD):", evaluate(base_model, tokenizer, id_pairs))
+    print("BASE MODEL OOD (NewsQA):", evaluate(base_model, tokenizer, ood_pairs))
+
+    model = attach_lora(base_model, cfg)
     result = train(model, tokenizer, train_ds, id_pairs, cfg)
-    print("TRAIN RESULT:", result)
+    print("LORA TRAIN RESULT:", result)
 
-    ood_pairs = load_newsqa(tokenizer, cfg)        # OOD generalization check
-    print("OOD (NewsQA):", evaluate(model, tokenizer, ood_pairs))
+    print("LORA OOD (NewsQA):", evaluate(model, tokenizer, ood_pairs))
 
 
 if __name__ == "__main__":
