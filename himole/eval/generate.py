@@ -1,5 +1,6 @@
 """Run generation on prompts and score with EM/ROUGE-2."""
 import torch
+from tqdm.auto import tqdm
 
 from himole.eval.metrics import score_batch
 
@@ -10,7 +11,7 @@ def generate_answers(model, tokenizer, prompts, max_new_tokens=32):
     model.eval()
     device = next(model.parameters()).device
     outs = []
-    for p in prompts:                                   # simple per-prompt loop (clear > fast)
+    for p in tqdm(prompts, desc="generating", unit="prompt", leave=False):
         ids = tokenizer(p, return_tensors="pt", truncation=True).to(device)
         gen = model.generate(**ids, max_new_tokens=max_new_tokens,
                              do_sample=False, pad_token_id=tokenizer.pad_token_id)
