@@ -1,10 +1,16 @@
 """A transparent, hand-written training loop so every step of LoRA fine-tuning
 is visible: build batches -> forward -> loss -> backward -> optimizer step,
 with periodic eval, early stopping, and best-checkpoint saving.
+
+Multi-GPU note: pass an Accelerator instance from the launch script.
+`accelerate launch --num_processes N scripts/train_baseline.py` handles process
+spawning; this file just wraps the three objects (model/optimizer/loader) and
+uses accelerator.backward() instead of loss.backward().
 """
 import os
 
 import torch
+from accelerate import Accelerator
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from tqdm.auto import tqdm
@@ -29,53 +35,68 @@ def collate(batch, tokenizer):
     return {"input_ids": input_ids, "attention_mask": attn, "labels": labels}
 
 
-def train(model, tokenizer, train_ds, val_eval_pairs, cfg):
-    """Run the LoRA fine-tuning loop. Returns the best eval metrics seen."""
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
-    if device == "cuda":
-        log.info(f"training on cuda:{torch.cuda.current_device()} ({torch.cuda.get_device_name()})")
-    else:
-        log.info("training on cpu")
+def train(model, tokenizer, train_ds, val_eval_pairs, cfg, accelerator=None):
+    """Run the LoRA fine-tuning loop. Returns the best eval metrics seen.
+
+    accelerator: Accelerator instance from the calling script. If None, a
+    default single-process one is created (single-GPU / CPU fallback).
+    """
+    if accelerator is None:
+        accelerator = Accelerator()
+
     loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True,
                         collate_fn=lambda b: collate(b, tokenizer))
     optimizer = AdamW((p for p in model.parameters() if p.requires_grad), lr=cfg.lr)
 
+    # accelerator.prepare() does three things at once:
+    #   - wraps model in DistributedDataParallel and moves it to the right GPU
+    #   - wraps optimizer so it steps across all replicas
+    #   - wraps loader so each process gets a non-overlapping shard of the data
+    model, optimizer, loader = accelerator.prepare(model, optimizer, loader)
+
+    if accelerator.is_main_process:
+        n = accelerator.num_processes
+        log.info(f"training on {n} GPU(s), effective batch size = {cfg.batch_size * n}")
+
     best_em, stale, step = -1.0, 0, 0
     os.makedirs(cfg.output_dir, exist_ok=True)
     model.train()
-    with tqdm(total=cfg.max_steps, desc="train", unit="step") as progress:
+    # tqdm only on rank-0 to avoid N identical progress bars
+    with tqdm(total=cfg.max_steps, desc="train", unit="step",
+              disable=not accelerator.is_local_main_process) as progress:
         while step < cfg.max_steps:
             for batch in loader:
-                batch = {k: v.to(device) for k, v in batch.items()}
-                # TODO (the core learning point): one optimization step.
-                #   1. outputs = model(**batch)        # HF returns outputs.loss (CE on labels)
-                #   2. loss = outputs.loss
-                #   3. loss.backward()
-                #   4. optimizer.step()
-                #   5. optimizer.zero_grad()
-                #raise NotImplementedError("TODO: implement the forward/backward/step")
-                outputs = model(**batch)  # HF returns outputs.loss (CE on labels)
+                # accelerate places tensors on the right device via prepare();
+                # no manual .to(device) needed
+                outputs = model(**batch)
                 loss = outputs.loss
-                loss.backward()
+                # accelerator.backward handles gradient scaling (mixed-precision) and
+                # the all-reduce across GPUs that DDP needs before optimizer.step()
+                accelerator.backward(loss)
                 optimizer.step()
                 optimizer.zero_grad()
                 step += 1
-                progress.update(1)
-                progress.set_postfix(loss=f"{loss.item():.4f}")
-                if step % cfg.eval_every == 0:                 # periodic eval + early stop
-                    progress.set_postfix(loss=f"{loss.item():.4f}", phase="eval")
-                    metrics = evaluate(model, tokenizer, val_eval_pairs)
-                    model.train()
-                    log.info(f"step {step} loss {loss.item():.4f} eval {metrics}")
-                    if metrics["em"] > best_em:
-                        best_em = metrics["em"]
-                        stale = 0
-                        model.save_pretrained(os.path.join(cfg.output_dir, "best"))
-                    else:
-                        stale += 1
-                    if stale >= cfg.early_stop_patience or step >= cfg.max_steps:
-                        return {"best_em": best_em, "last": metrics}
+                if accelerator.is_local_main_process:
+                    progress.update(1)
+                    progress.set_postfix(loss=f"{loss.item():.4f}")
+                if step % cfg.eval_every == 0:
+                    if accelerator.is_main_process:
+                        progress.set_postfix(loss=f"{loss.item():.4f}", phase="eval")
+                        # unwrap_model strips DDP so .generate() works
+                        raw = accelerator.unwrap_model(model)
+                        metrics = evaluate(raw, tokenizer, val_eval_pairs)
+                        model.train()
+                        log.info(f"step {step} loss {loss.item():.4f} eval {metrics}")
+                        if metrics["em"] > best_em:
+                            best_em = metrics["em"]
+                            stale = 0
+                            raw.save_pretrained(os.path.join(cfg.output_dir, "best"))
+                        else:
+                            stale += 1
+                        if stale >= cfg.early_stop_patience or step >= cfg.max_steps:
+                            return {"best_em": best_em, "last": metrics}
+                    # keep all ranks in sync after the eval window
+                    accelerator.wait_for_everyone()
                 if step >= cfg.max_steps:
                     break
     return {"best_em": best_em}
