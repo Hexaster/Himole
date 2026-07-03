@@ -5,11 +5,12 @@ Usage:
     python scripts/train_baseline.py --tiny --steps 5 --samples 8   # smoke test
 """
 import argparse
+import torch
 
 from datasets import load_dataset
 
 from himole.config import BaselineConfig
-from himole.utils import get_device, set_seed
+from himole.utils import set_seed
 from himole.model.baseline_lora import load_tokenizer, load_base_model, attach_lora
 from himole.data.squad import load_squad, build_prompt
 from himole.data.newsqa import load_newsqa
@@ -31,33 +32,32 @@ def main():
         cfg.max_steps = args.steps
     if args.samples is not None:
         cfg.max_train_samples = args.samples
+        cfg.max_eval_samples = args.samples
     set_seed(cfg.seed)
 
     tokenizer = load_tokenizer(cfg)
     base_model = load_base_model(cfg)
-    base_model.to(get_device())
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    base_model.to(device)
 
     train_ds, _ = load_squad(tokenizer, cfg)
 
     # Build (prompt, gold) eval pairs for ID validation from raw SQuAD val split.
     raw_val = load_dataset(cfg.id_dataset)["validation"]
-    if cfg.max_train_samples:
-        raw_val = raw_val.select(range(cfg.max_train_samples))
+    if cfg.max_eval_samples:
+        raw_val = raw_val.select(range(min(len(raw_val), cfg.max_eval_samples)))
     id_pairs = [{"prompt": build_prompt(e["context"], e["question"]),
                  "gold": e["answers"]["text"][0]} for e in raw_val]
     ood_pairs = load_newsqa(tokenizer, cfg)
 
-    print("BASE MODEL ID (SQuAD):", evaluate(base_model, tokenizer, id_pairs,
-                                             batch_size=cfg.eval_batch_size))
-    print("BASE MODEL OOD (NewsQA):", evaluate(base_model, tokenizer, ood_pairs,
-                                              batch_size=cfg.eval_batch_size))
+    print("BASE MODEL ID (SQuAD):", evaluate(base_model, tokenizer, id_pairs))
+    print("BASE MODEL OOD (NewsQA):", evaluate(base_model, tokenizer, ood_pairs))
 
     model = attach_lora(base_model, cfg)
     result = train(model, tokenizer, train_ds, id_pairs, cfg)
     print("LORA TRAIN RESULT:", result)
 
-    print("LORA OOD (NewsQA):", evaluate(model, tokenizer, ood_pairs,
-                                         batch_size=cfg.eval_batch_size))
+    print("LORA OOD (NewsQA):", evaluate(model, tokenizer, ood_pairs))
 
 
 if __name__ == "__main__":

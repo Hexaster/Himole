@@ -20,11 +20,11 @@ class BaselineConfig:
     id_dataset: str = "rajpurkar/squad"
     cutoff_len: int = 1024
     max_train_samples: int | None = None  # None = full; set small for smoke test
+    max_eval_samples: int | None = 500   # cap periodic/base-model evals; None = full val set
 
     # --- optim / loop ---
     lr: float = 3e-4          # TODO: paper does not isolate the plain-LoRA LR; confirm.
     batch_size: int = 16
-    eval_batch_size: int = 8
     max_steps: int = 10000
     eval_every: int = 50
     early_stop_patience: int = 10  # number of stale evals before stopping

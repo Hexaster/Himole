@@ -103,3 +103,25 @@ Hardware in the paper: RTX 4090 (24GB) for 7B models, A100 (40GB) for 13B. PEFT 
   replace the base model's MLP module rather than relying on `peft` injection alone.
 - Diversity-loss sampling (every 10 layers, subset of experts) is an efficiency detail — correctness
   first, then add the sampling.
+
+## GPU / eval engineering rules (do not violate)
+
+These were caught by static analysis. Treat them as non-negotiable for every model and eval written.
+
+1. **Move every model to GPU before the first eval.**
+   `load_base_model()` sets `torch_dtype=bfloat16` but does NOT call `.to("cuda")`. Always call
+   `model.to(device)` (where `device = "cuda" if torch.cuda.is_available() else "cpu"`) immediately
+   after loading, before any `evaluate()` call. Forgetting this silently runs the A100 at 0% GPU
+   utilization — `generate_answers` infers device from `next(model.parameters()).device`, so if the
+   model is on CPU, all generation runs on CPU.
+
+2. **Never evaluate one prompt at a time.**
+   Single-prompt generation (`for p in prompts: model.generate(...)`) wastes >95% of A100 capacity.
+   Always batch: tokenize a list of prompts with `padding=True`, pass as a single tensor, decode each
+   output by slicing off the padded input length. Use `tokenizer.padding_side = "left"` for causal LMs
+   during batched generation (right-padded inputs corrupt attention for all but the last token).
+
+3. **Cap eval samples — never run full validation every N steps.**
+   SQuAD validation is ~10k examples. At 50-step eval intervals over 10k training steps that is 200
+   full evals. Even at 1 s/batch this is hours of pure eval overhead. Use `cfg.max_eval_samples`
+   (default 500) for periodic and baseline evals. Reserve full-set eval for final reporting only.
