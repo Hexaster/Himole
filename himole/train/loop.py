@@ -65,7 +65,7 @@ def train(model, tokenizer, train_ds, val_eval_pairs, cfg):
                 progress.set_postfix(loss=f"{loss.item():.4f}")
                 if step % cfg.eval_every == 0:                 # periodic eval + early stop
                     progress.set_postfix(loss=f"{loss.item():.4f}", phase="eval")
-                    metrics = evaluate(model, tokenizer, val_eval_pairs)
+                    metrics = evaluate(model, tokenizer, val_eval_pairs, cutoff_len=cfg.cutoff_len)
                     model.train()
                     log.info(f"step {step} loss {loss.item():.4f} eval {metrics}")
                     if metrics["em"] > best_em:

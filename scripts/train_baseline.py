@@ -1,7 +1,7 @@
 """Entry point for the real A100 run: build config -> data -> model -> train -> eval OOD.
 
 Usage:
-    python scripts/train_baseline.py                 # full run on Llama-2-7B
+    python scripts/train_baseline.py                 # full run on Qwen2.5-7B
     python scripts/train_baseline.py --tiny --steps 5 --samples 8   # smoke test
 """
 import argparse
@@ -16,6 +16,12 @@ from himole.data.squad import load_squad, build_prompt
 from himole.data.newsqa import load_newsqa
 from himole.train.loop import train
 from himole.eval.generate import evaluate
+
+
+def require_full_run_cuda(cfg, device: str) -> None:
+    """Prevent accidental 7B runs on CPU; tiny smoke tests may use CPU."""
+    if not cfg.use_tiny and device != "cuda":
+        raise RuntimeError("CUDA is required for the full Qwen2.5-7B run; use --tiny for CPU smoke tests.")
 
 
 def main():
@@ -38,6 +44,7 @@ def main():
     tokenizer = load_tokenizer(cfg)
     base_model = load_base_model(cfg)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    require_full_run_cuda(cfg, device)
     base_model.to(device)
 
     train_ds, _ = load_squad(tokenizer, cfg)
@@ -50,14 +57,14 @@ def main():
                  "gold": e["answers"]["text"][0]} for e in raw_val]
     ood_pairs = load_newsqa(tokenizer, cfg)
 
-    print("BASE MODEL ID (SQuAD):", evaluate(base_model, tokenizer, id_pairs))
-    print("BASE MODEL OOD (NewsQA):", evaluate(base_model, tokenizer, ood_pairs))
+    print("BASE MODEL ID (SQuAD):", evaluate(base_model, tokenizer, id_pairs, cutoff_len=cfg.cutoff_len))
+    print("BASE MODEL OOD (NewsQA):", evaluate(base_model, tokenizer, ood_pairs, cutoff_len=cfg.cutoff_len))
 
     model = attach_lora(base_model, cfg)
     result = train(model, tokenizer, train_ds, id_pairs, cfg)
     print("LORA TRAIN RESULT:", result)
 
-    print("LORA OOD (NewsQA):", evaluate(model, tokenizer, ood_pairs))
+    print("LORA OOD (NewsQA):", evaluate(model, tokenizer, ood_pairs, cutoff_len=cfg.cutoff_len))
 
 
 if __name__ == "__main__":

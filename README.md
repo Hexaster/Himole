@@ -11,8 +11,9 @@ fill the matching TODO.
 
 ## Build 1 — plain-LoRA baseline (EQA / SQuAD)
 
-Fine-tune Llama-2-7B on SQuAD with standard `peft` LoRA; evaluate EM + ROUGE-2 on SQuAD (ID)
-and NewsQA (OOD). This is also the paper's plain-LoRA baseline (rank 80 / alpha 160).
+Fine-tune Qwen2.5-7B on SQuAD with standard `peft` LoRA; evaluate EM + ROUGE-2 on SQuAD (ID)
+and NewsQA (OOD). This reproduces the paper's plain-LoRA baseline settings except for using
+Qwen2.5-7B in place of Llama-2-7B (rank 80 / alpha 160).
 
 ### Install
 ```bash

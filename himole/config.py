@@ -13,17 +13,18 @@ class BaselineConfig:
     lora_r: int = 80
     lora_alpha: int = 160
     lora_dropout: float = 0.05
-    # FFN projection names for Llama; overridden for tiny-gpt2 in model loader.
+    # FFN projection names shared by Llama/Qwen-style MLPs; overridden for tiny-gpt2.
     target_modules: tuple = ("up_proj", "down_proj", "gate_proj")
 
     # --- data ---
     id_dataset: str = "rajpurkar/squad"
+    ood_dataset: str = "microsoft/newsqa"
     cutoff_len: int = 1024
     max_train_samples: int | None = None  # None = full; set small for smoke test
     max_eval_samples: int | None = 500   # cap periodic/base-model evals; None = full val set
 
     # --- optim / loop ---
-    lr: float = 3e-4          # TODO: paper does not isolate the plain-LoRA LR; confirm.
+    lr: float = 3e-4          # paper Table 7 plain-LoRA learning rate
     batch_size: int = 16
     max_steps: int = 10000
     eval_every: int = 50
