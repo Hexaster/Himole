@@ -37,37 +37,46 @@ def train(model, tokenizer, train_ds, val_eval_pairs, cfg):
         log.info(f"training on cuda:{torch.cuda.current_device()} ({torch.cuda.get_device_name()})")
     else:
         log.info("training on cpu")
-    loader = DataLoader(train_ds, batch_size=cfg.batch_size, shuffle=True,
+
+    # Memory: recompute activations during backward instead of storing all of them.
+    # Without this, a 7B fwd/bwd over a full micro-batch of 1024-token sequences OOMs
+    # even on a 40GB A100 (weights ~14GB fit; the retained activations are what overflow).
+    model.gradient_checkpointing_enable()
+    model.enable_input_require_grads()  # frozen base: let grads reach the LoRA adapters
+    model.config.use_cache = False      # KV cache is incompatible with checkpointing while training
+
+    # Reach the paper's effective batch (cfg.batch_size) by accumulating grads over
+    # cfg.batch_size / cfg.micro_batch_size forward passes before each optimizer step.
+    accum = max(1, cfg.batch_size // cfg.micro_batch_size)
+    loader = DataLoader(train_ds, batch_size=cfg.micro_batch_size, shuffle=True,
                         collate_fn=lambda b: collate(b, tokenizer))
     optimizer = AdamW((p for p in model.parameters() if p.requires_grad), lr=cfg.lr)
 
-    best_em, stale, step = -1.0, 0, 0
+    best_em, stale, step, micro = -1.0, 0, 0, 0
     os.makedirs(cfg.output_dir, exist_ok=True)
     model.train()
     with tqdm(total=cfg.max_steps, desc="train", unit="step") as progress:
         while step < cfg.max_steps:
             for batch in loader:
                 batch = {k: v.to(device) for k, v in batch.items()}
-                # TODO (the core learning point): one optimization step.
-                #   1. outputs = model(**batch)        # HF returns outputs.loss (CE on labels)
-                #   2. loss = outputs.loss
-                #   3. loss.backward()
-                #   4. optimizer.step()
-                #   5. optimizer.zero_grad()
-                #raise NotImplementedError("TODO: implement the forward/backward/step")
-                outputs = model(**batch)  # HF returns outputs.loss (CE on labels)
-                loss = outputs.loss
+                # Forward/backward on ONE micro-batch. Scale the loss by 1/accum so the
+                # accumulated grads average (not sum) to the effective-batch gradient.
+                outputs = model(**batch)          # HF returns outputs.loss (CE on labels)
+                loss = outputs.loss / accum
                 loss.backward()
+                micro += 1
+                if micro % accum != 0:
+                    continue                       # keep accumulating; no optimizer step yet
                 optimizer.step()
                 optimizer.zero_grad()
                 step += 1
                 progress.update(1)
-                progress.set_postfix(loss=f"{loss.item():.4f}")
+                progress.set_postfix(loss=f"{loss.item() * accum:.4f}")
                 if step % cfg.eval_every == 0:                 # periodic eval + early stop
-                    progress.set_postfix(loss=f"{loss.item():.4f}", phase="eval")
+                    progress.set_postfix(loss=f"{loss.item() * accum:.4f}", phase="eval")
                     metrics = evaluate(model, tokenizer, val_eval_pairs, cutoff_len=cfg.cutoff_len)
                     model.train()
-                    log.info(f"step {step} loss {loss.item():.4f} eval {metrics}")
+                    log.info(f"step {step} loss {loss.item() * accum:.4f} eval {metrics}")
                     if metrics["em"] > best_em:
                         best_em = metrics["em"]
                         stale = 0

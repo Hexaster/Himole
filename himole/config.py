@@ -25,8 +25,9 @@ class BaselineConfig:
 
     # --- optim / loop ---
     lr: float = 3e-4          # paper Table 7 plain-LoRA learning rate
-    batch_size: int = 16
-    max_steps: int = 10000
+    batch_size: int = 16      # EFFECTIVE/global batch (paper Table 7); reached via accumulation
+    micro_batch_size: int = 1  # per-step forward size that must fit in VRAM; accum = batch/micro
+    max_steps: int = 10000    # counts OPTIMIZER steps, not micro-batches
     eval_every: int = 50
     early_stop_patience: int = 10  # number of stale evals before stopping
     seed: int = 42

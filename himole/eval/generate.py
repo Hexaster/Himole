@@ -14,6 +14,13 @@ def generate_answers(model, tokenizer, prompts, max_new_tokens=32, batch_size=16
     orig_truncation_side = tokenizer.truncation_side
     tokenizer.padding_side = "left"      # causal LMs require left-padding for batched generation
     tokenizer.truncation_side = "left"   # keep the question and "Answer:" suffix when capped
+    # Training turns the KV cache off (it clashes with gradient checkpointing), but generation
+    # is under eval()/no_grad so re-enabling it here is safe and ~10x faster. Guarded because
+    # test doubles may not carry a .config.
+    model_cfg = getattr(model, "config", None)
+    orig_use_cache = getattr(model_cfg, "use_cache", None)
+    if model_cfg is not None:
+        model_cfg.use_cache = True
     outs = []
     try:
         for i in tqdm(range(0, len(prompts), batch_size), desc="generating", unit="batch", leave=False):
@@ -29,6 +36,8 @@ def generate_answers(model, tokenizer, prompts, max_new_tokens=32, batch_size=16
     finally:
         tokenizer.padding_side = orig_padding_side
         tokenizer.truncation_side = orig_truncation_side
+        if model_cfg is not None:
+            model_cfg.use_cache = orig_use_cache
     return outs
 
 
