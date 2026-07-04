@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from tqdm.auto import tqdm
+from peft import get_peft_model_state_dict, set_peft_model_state_dict
 
 from himole.eval.generate import evaluate
 from himole.utils import get_logger
@@ -53,6 +54,15 @@ def train(model, tokenizer, train_ds, val_eval_pairs, cfg):
     optimizer = AdamW((p for p in model.parameters() if p.requires_grad), lr=cfg.lr)
 
     best_em, stale, step, micro = -1.0, 0, 0, 0
+    best_state = None  # CPU snapshot of the best-EM LoRA weights (see _restore_best)
+
+    def _restore_best():
+        # Early stopping keeps training up to `patience` evals past the best checkpoint,
+        # so the in-memory model is more overfit than `best`. Load the best LoRA weights
+        # back so the caller's OOD eval scores the checkpoint the paper says to report.
+        if best_state is not None:
+            set_peft_model_state_dict(model, best_state)
+
     os.makedirs(cfg.output_dir, exist_ok=True)
     model.train()
     with tqdm(total=cfg.max_steps, desc="train", unit="step") as progress:
@@ -81,10 +91,14 @@ def train(model, tokenizer, train_ds, val_eval_pairs, cfg):
                         best_em = metrics["em"]
                         stale = 0
                         model.save_pretrained(os.path.join(cfg.output_dir, "best"))
+                        best_state = {k: v.detach().cpu().clone()
+                                      for k, v in get_peft_model_state_dict(model).items()}
                     else:
                         stale += 1
                     if stale >= cfg.early_stop_patience or step >= cfg.max_steps:
+                        _restore_best()
                         return {"best_em": best_em, "last": metrics}
                 if step >= cfg.max_steps:
                     break
+    _restore_best()
     return {"best_em": best_em}
