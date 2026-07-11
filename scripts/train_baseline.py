@@ -57,14 +57,14 @@ def main():
                  "gold": e["answers"]["text"][0]} for e in raw_val]
     ood_pairs = load_newsqa(tokenizer, cfg)
 
-    print("BASE MODEL ID (SQuAD):", evaluate(base_model, tokenizer, id_pairs, cutoff_len=cfg.cutoff_len))
-    print("BASE MODEL OOD (NewsQA):", evaluate(base_model, tokenizer, ood_pairs, cutoff_len=cfg.cutoff_len))
+    print("BASE MODEL ID (SQuAD):", evaluate(base_model, tokenizer, id_pairs, cutoff_len=cfg.cutoff_len, batch_size=cfg.eval_batch_size))
+    print("BASE MODEL OOD (NewsQA):", evaluate(base_model, tokenizer, ood_pairs, cutoff_len=cfg.cutoff_len, batch_size=cfg.eval_batch_size))
 
     model = attach_lora(base_model, cfg)
     result = train(model, tokenizer, train_ds, id_pairs, cfg)
     print("LORA TRAIN RESULT:", result)
 
-    print("LORA OOD (NewsQA):", evaluate(model, tokenizer, ood_pairs, cutoff_len=cfg.cutoff_len))
+    print("LORA OOD (NewsQA):", evaluate(model, tokenizer, ood_pairs, cutoff_len=cfg.cutoff_len, batch_size=cfg.eval_batch_size))
 
 
 if __name__ == "__main__":

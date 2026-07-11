@@ -25,12 +25,6 @@ def attach_lora(model, cfg):
     """Wrap the base model with LoRA adapters on the FFN projections."""
     # tiny-gpt2 has no up/down/gate_proj; its MLP uses 'c_fc'/'c_proj'.
     targets = ["c_fc", "c_proj"] if cfg.use_tiny else list(cfg.target_modules)
-    # TODO (the core learning point): build a LoraConfig with
-    #   r=cfg.lora_r, lora_alpha=cfg.lora_alpha, lora_dropout=cfg.lora_dropout,
-    #   target_modules=targets, task_type="CAUSAL_LM", bias="none".
-    #   Then peft_model = get_peft_model(model, lora_config).
-    #   Finally peft_model.print_trainable_parameters() and return peft_model.
-    #raise NotImplementedError("TODO: build LoraConfig and wrap with get_peft_model")
     lora_config = LoraConfig(
         r=cfg.lora_r,
         lora_alpha=cfg.lora_alpha,

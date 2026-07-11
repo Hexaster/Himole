@@ -27,25 +27,19 @@ def format_example(example: dict, tokenizer, cutoff_len: int) -> dict:
     """Tokenize one example into input_ids/attention_mask/labels with prompt masking."""
     prompt = build_prompt(example["context"], example["question"])
     answer = " " + example["answers"]["text"][0] + tokenizer.eos_token
-    # TODO (the core learning point):
-    #   1. tokenize `prompt` and `prompt + answer` (no special tokens) up to cutoff_len.
-    prompt_ids = tokenizer(prompt, add_special_tokens=False, truncation=True, max_length=cutoff_len).input_ids
-    #   2. input_ids = ids of (prompt + answer).
-    input_ids = tokenizer(prompt + answer, add_special_tokens=False, truncation=True, max_length=cutoff_len).input_ids
-
-    #   3. labels = copy of input_ids, but set the FIRST len(prompt_ids) labels to -100.
-    labels = input_ids.copy()
-    labels[:len(prompt_ids)] = [-100] * len(prompt_ids)
-
-    #   4. attention_mask = all 1s (we pad later in the collator).
+    prompt_ids = tokenizer(prompt, add_special_tokens=False).input_ids
+    answer_ids = tokenizer(answer, add_special_tokens=False).input_ids[:cutoff_len]
+    # Reserve room for the answer; otherwise a long context can mask every label.
+    prompt_ids = prompt_ids[:max(0, cutoff_len - len(answer_ids))]
+    input_ids = prompt_ids + answer_ids
+    labels = [-100] * len(prompt_ids) + answer_ids
     attention_mask = [1] * len(input_ids)
-    #   5. return {"input_ids", "attention_mask", "labels"}.
     return {
         "input_ids": input_ids,
         "attention_mask": attention_mask,
-        "labels": labels
+        "labels": labels,
+        "clustering_text": f"{example['context']}\n{example['question']}",
     }
-    #raise NotImplementedError("TODO: tokenize and build the loss mask")
 
 
 def load_squad(tokenizer, cfg):

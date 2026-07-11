@@ -1,4 +1,4 @@
-"""Tests for EM and ROUGE-2. Fail until metrics.py TODOs are filled."""
+"""Tests for EM and ROUGE-2."""
 from himole.eval.metrics import normalize_answer, exact_match, rouge2, score_batch
 
 

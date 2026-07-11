@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiMoLE &middot; Build 2 Map - Adopt the Routed Expert Method</title>
+<style>
+  :root{
+    --bg:#101115; --panel:#171a20; --panel2:#20242d; --ink:#e9edf3; --mut:#9aa5b5;
+    --line:#2c323d; --acc:#8ab4ff; --good:#7ee787; --warn:#f2bd73; --todo:#f7768e;
+    --code:#0a0c10; --radius:8px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--acc);text-decoration:none} a:hover{text-decoration:underline}
+  code,kbd,pre{font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  code{background:var(--code);border:1px solid var(--line);padding:1px 6px;border-radius:6px;font-size:.86em}
+  .wrap{max-width:1040px;margin:0 auto;padding:40px 22px 92px}
+  header h1{font-size:31px;margin:0 0 6px;letter-spacing:0}
+  header p{color:var(--mut);margin:0;max-width:780px}
+  .badge{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    color:var(--mut);border-radius:999px;padding:3px 10px;font-size:12px;margin:8px 6px 0 0}
+  .progwrap{margin:24px 0 8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;height:14px;overflow:hidden}
+  .progbar{height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--good));transition:width .25s}
+  .progtxt{color:var(--mut);font-size:13px;margin-bottom:30px}
+  section{margin:34px 0}
+  h2{font-size:21px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;margin:18px 0 8px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:880px){.grid3{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+  .pipe{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px}
+  .step b{color:var(--acc)} .arrow{color:var(--mut)}
+  ul.tight,ol.tight{padding-left:20px;margin:8px 0}
+  ul.tight li,ol.tight li{margin:6px 0}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  .tag{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;white-space:nowrap}
+  .tag.c{background:rgba(138,180,255,.13);color:var(--acc);border:1px solid rgba(138,180,255,.3)}
+  .tag.m{background:rgba(242,189,115,.12);color:var(--warn);border:1px solid rgba(242,189,115,.32)}
+  .tag.t{background:rgba(247,118,142,.13);color:var(--todo);border:1px solid rgba(247,118,142,.3)}
+  .card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--todo);
+    border-radius:var(--radius);padding:18px 20px;margin:16px 0}
+  .card.done{border-left-color:var(--good);opacity:.8}
+  .card h3{display:flex;align-items:center;gap:10px;margin-top:0;font-size:17px}
+  .card h3 .n{background:var(--todo);color:#0b0d11;font-weight:800;border-radius:7px;
+    min-width:28px;height:28px;display:inline-grid;place-items:center;font-size:13px}
+  .card.done h3 .n{background:var(--good)}
+  .chk{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)}
+  .chk input{width:18px;height:18px;accent-color:var(--good);cursor:pointer}
+  .meta{font-size:13px;color:var(--mut);margin:2px 0 12px}
+  .callout{background:rgba(242,189,115,.08);border:1px solid rgba(242,189,115,.3);
+    border-radius:8px;padding:10px 14px;margin:10px 0;font-size:14px}
+  .callout b{color:var(--warn)}
+  .ok{background:rgba(126,231,135,.08);border-color:rgba(126,231,135,.28)}
+  .ok b{color:var(--good)}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px;overflow:auto;font-size:13px;line-height:1.5}
+  footer{margin-top:50px;color:var(--mut);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>HiMoLE &middot; Build 2 Map</h1>
+  <p>Step-by-step adoption plan for moving from the finished plain-LoRA baseline to the HiMoLE routed expert method.</p>
+  <div>
+    <span class="badge">starting point: Build 1 LoRA baseline</span>
+    <span class="badge">target: hierarchical mixture of LoRA experts</span>
+    <span class="badge">task: EQA / SQuAD &rarr; NewsQA</span>
+    <span class="badge">N=3 groups, M=4 experts, top-k=2</span>
+  </div>
+</header>
+
+<div class="progwrap"><div class="progbar" id="bar"></div></div>
+<div class="progtxt" id="ptxt">0 / 10 adoption steps complete - progress is saved in this browser.</div>
+
+<section>
+  <h2>0 &middot; Assumptions</h2>
+  <div class="panel">
+    <ul class="tight">
+      <li><b>Adopt to HiMoLE</b> means Build 2 adds the paper method beside the baseline, not by deleting the baseline.</li>
+      <li>The first target remains the EQA setup: train on SQuAD, evaluate ID on SQuAD and OOD on NewsQA.</li>
+      <li>Use Qwen2.5-7B as the practical stand-in already configured in <code>BaselineConfig</code>.</li>
+      <li>Build 2 should prove the routed-expert architecture and tiny smoke path before any long server run.</li>
+      <li>Paper-exact two-stage training is required before claiming a HiMoLE result; random expert init is only for architecture smoke tests.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>1 &middot; Architecture target</h2>
+  <div class="panel">
+    <p style="margin-top:0">Keep the frozen base model. Replace the plain single LoRA adapter on FFN projections with grouped LoRA experts and a hierarchical router.</p>
+    <div class="pipe">
+      <span class="step"><b>hidden tokens</b></span><span class="arrow">&rarr;</span>
+      <span class="step">sentence avg pool</span><span class="arrow">&rarr;</span>
+      <span class="step"><b>group router</b> over N</span><span class="arrow">&rarr;</span>
+      <span class="step"><b>token router</b> over N x M</span><span class="arrow">&rarr;</span>
+      <span class="step">broadcast + top-k</span><span class="arrow">&rarr;</span>
+      <span class="step"><b>LoRA expert delta</b></span><span class="arrow">&rarr;</span>
+      <span class="step">frozen FFN + delta</span>
+    </div>
+    <div class="callout">
+      <b>Key invariant:</b> the baseline path stays runnable. New HiMoLE modules should live behind a separate loader/script so we can compare Base, LoRA, and HiMoLE on the same eval harness.
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>2 &middot; Approach options</h2>
+  <div class="grid3">
+    <div class="panel">
+      <h3 style="margin-top:0">A. Incremental architecture first</h3>
+      <p class="meta">Recommended.</p>
+      <p>Build isolated routed LoRA layers, test shapes and routing math, then wire them into the model and add staged training.</p>
+      <p class="meta">Best balance of correctness, small diffs, and debuggability.</p>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">B. Paper-full first</h3>
+      <p>Implement clustering, stage 1, routers, losses, and stage 2 together.</p>
+      <p class="meta">Fast on paper, but high risk: too many possible failure points before the first green test.</p>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">C. Notebook-only prototype</h3>
+      <p>Prototype HiMoLE in a notebook without package tests.</p>
+      <p class="meta">Good for learning, but weak as the repo's next build because regressions become hard to catch.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>3 &middot; File plan</h2>
+  <div class="panel" style="padding:6px 8px">
+    <table>
+      <tr><th>File</th><th>Role in Build 2</th><th>Action</th></tr>
+      <tr><td><a href="../himole/config.py">himole/config.py</a></td><td><code>HimoleConfig</code>: EQA defaults, expert topology, two-stage LRs, and unset alpha/beta loss weights.</td><td><span class="tag m">modify</span></td></tr>
+      <tr><td><a href="../himole/model/experts.py">himole/model/experts.py</a></td><td><code>LoRAExpert</code> and <code>KnowledgeCompetitionGroup</code>; fill expert forward and KCG collaboration TODOs.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td><a href="../himole/model/routing.py">himole/model/routing.py</a></td><td><code>HierarchicalRouter</code> and <code>RoutingOutput</code>; fill sentence/token fusion and KeepTop-k TODO.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td><a href="../himole/model/layer.py">himole/model/layer.py</a></td><td><code>HiMoLEFFNLayer</code>; fill frozen FFN plus routed expert delta TODO.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td><a href="../himole/model/patching.py">himole/model/patching.py</a></td><td>Freeze base weights, find target FFN modules, and replace them with HiMoLE wrappers.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td><a href="../himole/train/losses.py">himole/train/losses.py</a></td><td>Load-balancing auxiliary loss, diversity loss, and final Stage-2 loss combination.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td><a href="../himole/train/stage1.py">himole/train/stage1.py</a></td><td>Stage-1 KCG initialization: clustering plus independent per-cluster KCG training.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td><a href="../himole/train/stage2.py">himole/train/stage2.py</a></td><td>Stage-2 joint optimization of experts and routers.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td><a href="../himole/data/clustering.py">himole/data/clustering.py</a></td><td>Embed SQuAD examples and assign them to N Stage-1 clusters.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td><a href="../scripts/train_himole.py">scripts/train_himole.py</a></td><td>Main HiMoLE entry point; currently stops at explicit Stage-1 TODO gate.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td><a href="../tests/test_himole_scaffold.py">tests/test_himole_scaffold.py</a></td><td>Scaffold import, shape, config, and TODO-gate tests.</td><td><span class="tag c">created</span></td></tr>
+      <tr><td>tests/test_himole_layers.py</td><td>Future concrete routing/layer behavior tests once TODOs are filled.</td><td><span class="tag c">create</span></td></tr>
+      <tr><td>tests/test_himole_losses.py</td><td>Future auxiliary/diversity loss tests with small tensors.</td><td><span class="tag c">create</span></td></tr>
+      <tr><td>scripts/compare_baseline_himole.py</td><td>Future shared report for Base, LoRA, and HiMoLE ID/OOD metrics.</td><td><span class="tag c">create</span></td></tr>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>4 &middot; Step-by-step adoption plan</h2>
+  <p class="meta">Tick a step only after its verification command passes. Keep changes scoped to the files named in that step.</p>
+
+  <div class="card" id="card1">
+    <h3><span class="n">1</span> Freeze the baseline as the comparison target
+      <span class="chk"><label for="c1">done</label><input type="checkbox" id="c1"></span></h3>
+    <div class="meta">Files: no model changes. Read <a href="build1-map.html">docs/build1-map.html</a>, <a href="../scripts/train_baseline.py">scripts/train_baseline.py</a>, and <a href="../himole/model/baseline_lora.py">baseline_lora.py</a>.</div>
+    <p>Record the baseline behavior before filling HiMoLE TODOs. This keeps Build 2 honest: every new result must compare against the same prompts, metrics, and eval caps.</p>
+<pre>pytest tests/test_himole_scaffold.py tests/test_training_progress.py -q
+pytest -v
+python scripts/train_baseline.py --tiny --steps 5 --samples 8</pre>
+    <div class="callout ok"><b>Success:</b> the scaffold tests pass, full tests pass when dependencies are installed, and the tiny baseline finishes without changing any baseline files.</div>
+  </div>
+
+  <div class="card" id="card2">
+    <h3><span class="n">2</span> Add explicit HiMoLE configuration
+      <span class="chk"><label for="c2">done</label><input type="checkbox" id="c2"></span></h3>
+    <div class="meta">Modify: <a href="../himole/config.py">himole/config.py</a>. Test: <code>tests/test_himole_scaffold.py</code>.</div>
+    <p>Use the existing <code>HimoleConfig</code>. Do not overload the plain-LoRA rank 80 settings.</p>
+    <ul class="tight">
+      <li><code>lora_r=8</code>, <code>lora_alpha=16</code>, <code>lora_dropout=0.05</code></li>
+      <li><code>num_kcgs=3</code>, <code>experts_per_kcg=4</code>, <code>top_k=2</code></li>
+      <li><code>stage1_lr=3e-4</code>, <code>stage2_lr=3e-5</code></li>
+      <li><code>aux_loss_weight</code>, <code>diversity_loss_weight</code>, <code>clustering_encoder</code></li>
+    </ul>
+<pre>pytest tests/test_himole_scaffold.py::test_himole_config_defaults_match_eqa_build -v</pre>
+  </div>
+
+  <div class="card" id="card3">
+    <h3><span class="n">3</span> Build the routed LoRA layer in isolation
+      <span class="chk"><label for="c3">done</label><input type="checkbox" id="c3"></span></h3>
+    <div class="meta">Modify: <code>himole/model/experts.py</code>, <code>himole/model/routing.py</code>, and <code>himole/model/layer.py</code>. Test: <code>tests/test_himole_scaffold.py</code>, then add <code>tests/test_himole_layers.py</code>.</div>
+    <p>Implement the smallest useful units: LoRA expert deltas, hierarchical router outputs, and a frozen FFN plus N x M trainable expert deltas.</p>
+    <ol class="tight">
+      <li><code>LoRAExpert.forward</code>: low-rank A/B update with scaling <code>alpha / r</code>.</li>
+      <li><code>HierarchicalRouter.forward</code>: sentence scores over KCGs and token scores over KCEs.</li>
+      <li><code>KnowledgeCompetitionGroup.forward</code>: combine M KCE outputs inside one KCG.</li>
+      <li><code>HiMoLEFFNLayer.forward</code>: base FFN output plus weighted expert deltas.</li>
+      <li>Return routing metadata needed by losses: selected experts, router probabilities, and grouped expert outputs.</li>
+    </ol>
+    <div class="callout"><b>Shape to test:</b> sentence scores <code>[B,N]</code> broadcast to <code>[B,T,N,M]</code>; token scores are <code>[B,T,N,M]</code>; final gates keep only <code>top_k</code> experts per token.</div>
+<pre>pytest tests/test_himole_scaffold.py tests/test_himole_layers.py -v</pre>
+  </div>
+
+  <div class="card" id="card4">
+    <h3><span class="n">4</span> Replace target FFN projections behind a new loader
+      <span class="chk"><label for="c4">done</label><input type="checkbox" id="c4"></span></h3>
+    <div class="meta">Modify: <code>himole/model/patching.py</code>. Keep: <a href="../himole/model/baseline_lora.py">baseline_lora.py</a> unchanged unless a shared helper is truly needed.</div>
+    <p>Write patching code that finds the same FFN target modules as Build 1 and wraps them with <code>HiMoLEFFNLayer</code>. Tiny GPT-2 remains the smoke-test path, so keep its <code>c_fc</code>/<code>c_proj</code> names supported.</p>
+    <ul class="tight">
+      <li>Freeze all base model parameters.</li>
+      <li>Leave only expert A/B matrices and routers trainable.</li>
+      <li>Print trainable parameter counts, matching the baseline's readability.</li>
+    </ul>
+<pre>pytest tests/test_himole_scaffold.py tests/test_himole_layers.py tests/test_train_baseline.py -v</pre>
+  </div>
+
+  <div class="card" id="card5">
+    <h3><span class="n">5</span> Add router losses and diagnostics
+      <span class="chk"><label for="c5">done</label><input type="checkbox" id="c5"></span></h3>
+    <div class="meta">Modify: <code>himole/train/losses.py</code>. Test: <code>tests/test_himole_losses.py</code>.</div>
+    <p>Implement the Stage-2 losses before wiring them into training, using tiny tensors that make expected values obvious.</p>
+    <ul class="tight">
+      <li><code>L_aux = E * sum(F_i * P_i)</code> for load balancing, where <code>E = N x M</code>.</li>
+      <li><code>L_diverse</code>: normalize grouped expert outputs and average pairwise cosine similarity across groups.</li>
+      <li><code>combine_stage2_losses</code>: keep raising until <code>aux_loss_weight</code> and <code>diversity_loss_weight</code> are confirmed.</li>
+      <li>Expose load stats so a training log can show expert imbalance.</li>
+    </ul>
+<pre>pytest tests/test_himole_losses.py -v</pre>
+  </div>
+
+  <div class="card" id="card6">
+    <h3><span class="n">6</span> Make a Stage-2 tiny smoke training path
+      <span class="chk"><label for="c6">done</label><input type="checkbox" id="c6"></span></h3>
+    <div class="meta">Modify: <code>himole/train/stage2.py</code> and <code>scripts/train_himole.py</code>.</div>
+    <p>Wire the routed layer into a training loop that computes <code>L_task + alpha * L_aux + beta * L_diverse</code>. At this point random expert init is acceptable only as an architecture smoke test.</p>
+    <p class="meta">Add <code>--steps</code>, <code>--samples</code>, and <code>--skip-stage1</code> flags as part of this step before using the command below.</p>
+<pre>python scripts/train_himole.py --tiny --steps 5 --samples 8 --skip-stage1</pre>
+    <div class="callout"><b>Success:</b> one forward/backward/optimizer path completes, router metadata is present, and the baseline tiny command still works.</div>
+  </div>
+
+  <div class="card" id="card7">
+    <h3><span class="n">7</span> Add Stage-1 clustering for KCG initialization
+      <span class="chk"><label for="c7">done</label><input type="checkbox" id="c7"></span></h3>
+    <div class="meta">Modify: <code>himole/data/clustering.py</code>, <code>himole/train/stage1.py</code>, and <code>scripts/train_himole.py</code>. Optional create: <code>scripts/stage1_init_himole.py</code>.</div>
+    <p>Embed training examples with the EQA clustering encoder, cluster into <code>N=3</code> subdomains, then train one KCG per cluster before routing is learned.</p>
+    <ul class="tight">
+      <li>Cache cluster assignments so reruns do not re-embed unnecessarily.</li>
+      <li>Train each KCG independently on its cluster subset.</li>
+      <li>Copy the KCG initialization into all <code>M=4</code> experts in that group.</li>
+    </ul>
+    <p class="meta">Add the <code>--stage1-only</code> flag as part of this step before using the command below.</p>
+<pre>python scripts/train_himole.py --tiny --stage1-only --samples 24 --steps 3</pre>
+  </div>
+
+  <div class="card" id="card8">
+    <h3><span class="n">8</span> Run true Stage-2 joint optimization
+      <span class="chk"><label for="c8">done</label><input type="checkbox" id="c8"></span></h3>
+    <div class="meta">Modify: <code>scripts/train_himole.py</code> and <code>himole/train/stage2.py</code>.</div>
+    <p>Load Stage-1 expert checkpoints, unfreeze experts and routers, then train on the full ID dataset with the combined loss. Keep eval capped during training.</p>
+<pre>python scripts/train_himole.py --tiny --steps 10 --samples 16
+python scripts/train_himole.py</pre>
+    <div class="callout"><b>Do not claim paper behavior</b> until Stage 1 initializes the KCGs and Stage 2 uses the router losses.</div>
+  </div>
+
+  <div class="card" id="card9">
+    <h3><span class="n">9</span> Compare Base, LoRA, and HiMoLE on the same harness
+      <span class="chk"><label for="c9">done</label><input type="checkbox" id="c9"></span></h3>
+    <div class="meta">Create: <code>scripts/compare_baseline_himole.py</code>. Reuse: <a href="../himole/eval/generate.py">himole/eval/generate.py</a> and <a href="../himole/eval/metrics.py">metrics.py</a>.</div>
+    <p>Generate a small report with ID and OOD metrics for all three model states. This is the point where the adoption becomes measurable.</p>
+<pre>python scripts/compare_baseline_himole.py --samples 200 --out outputs/himole_compare.json</pre>
+    <div class="callout ok"><b>Success:</b> the report contains Base ID/OOD, LoRA ID/OOD, HiMoLE ID/OOD, plus trainable parameter counts and eval sample counts.</div>
+  </div>
+
+  <div class="card" id="card10">
+    <h3><span class="n">10</span> Document the final Build-2 workflow
+      <span class="chk"><label for="c10">done</label><input type="checkbox" id="c10"></span></h3>
+    <div class="meta">Modify: <a href="../README.md">README.md</a>. Optional create: <code>notebooks/02_himole_routing.ipynb</code>.</div>
+    <p>Only after the commands above work, document the exact workflow and the verified numbers. Keep the notebook educational, but treat tests and scripts as the source of truth.</p>
+<pre>pytest -v
+python scripts/train_baseline.py --tiny --steps 5 --samples 8
+python scripts/train_himole.py --tiny --steps 5 --samples 8</pre>
+  </div>
+</section>
+
+<section>
+  <h2>5 &middot; Pitfalls to watch</h2>
+  <div class="grid2">
+    <div class="panel">
+      <h3 style="margin-top:0">Routing math</h3>
+      <ul class="tight">
+        <li>Broadcast each group score across its <code>M</code> experts before combining with token scores.</li>
+        <li>Apply <code>top_k=2</code> per token, not per batch.</li>
+        <li>Keep router metadata detached only for logging; losses need gradients through probabilities.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">Training discipline</h3>
+      <ul class="tight">
+        <li>Stage 1 is not optional for real HiMoLE results.</li>
+        <li>Keep full validation out of periodic eval; use <code>cfg.max_eval_samples</code>.</li>
+        <li>Move models to CUDA before eval and keep batched generation.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>6 &middot; Success criteria</h2>
+  <div class="panel">
+    <ol class="tight">
+      <li>All existing Build-1 tests and tiny smoke runs still pass.</li>
+      <li>New HiMoLE layer tests prove shape safety, top-k routing, frozen base weights, and trainable expert/router gradients.</li>
+      <li>Stage-2 tiny smoke training completes with router losses enabled.</li>
+      <li>Stage-1 initializes distinct KCG expert checkpoints before real Stage-2 training.</li>
+      <li>The comparison report uses identical prompts, metrics, and eval caps for Base, LoRA, and HiMoLE.</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  HiMoLE study reimplementation &middot; Build 2 map &middot; plain-LoRA baseline to hierarchical mixture of LoRA experts.
+</footer>
+
+</div>
+
+<script>
+  var ids = ["c1","c2","c3","c4","c5","c6","c7","c8","c9","c10"];
+  function refresh(){
+    var done = 0;
+    ids.forEach(function(id){
+      var box = document.getElementById(id);
+      var card = document.getElementById("card"+id.slice(1));
+      if(box.checked){ done++; card.classList.add("done"); } else { card.classList.remove("done"); }
+    });
+    document.getElementById("bar").style.width = (done/ids.length*100)+"%";
+    document.getElementById("ptxt").textContent =
+      done+" / "+ids.length+" adoption steps complete - progress is saved in this browser.";
+  }
+  ids.forEach(function(id){
+    var box = document.getElementById(id);
+    box.checked = localStorage.getItem("himole_b2_"+id) === "1";
+    box.addEventListener("change", function(){
+      localStorage.setItem("himole_b2_"+id, box.checked ? "1" : "0");
+      refresh();
+    });
+  });
+  refresh();
+</script>
+</body>
+</html>

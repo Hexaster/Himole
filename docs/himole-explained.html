@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiMoLE, explained simply</title>
+<style>
+/* ============================================================
+   Tokens. Palette follows the validated reference instance:
+   surfaces, ink, and categorical slots 1-3 (blue, aqua, yellow).
+   Radius rule for the whole page: panels 16px, buttons full-pill,
+   inputs 8px, chart bars 4px on the data end.
+   ============================================================ */
+:root {
+  --page:        #f9f9f7;
+  --surface:     #fcfcfb;
+  --ink:         #0b0b0b;
+  --ink-2:       #52514e;
+  --muted:       #898781;
+  --grid:        #e1e0d9;
+  --baseline:    #c3c2b7;
+  --border:      rgba(11,11,11,0.10);
+  --accent:      #2a78d6;
+  --accent-text: #184f95;
+  --accent-soft: rgba(42,120,214,0.10);
+  --g1:          #2a78d6;   /* group 1: blue  */
+  --g2:          #1baf7a;   /* group 2: aqua  */
+  --g3:          #eda100;   /* group 3: yellow*/
+  --g1-soft:     rgba(42,120,214,0.12);
+  --g2-soft:     rgba(27,175,122,0.14);
+  --g3-soft:     rgba(237,161,0,0.14);
+  --good-text:   #006300;
+  --bad-text:    #d03b3b;
+  --shadow:      0 1px 2px rgba(11,11,11,0.04), 0 8px 24px rgba(11,11,11,0.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page:        #0d0d0d;
+    --surface:     #1a1a19;
+    --ink:         #ffffff;
+    --ink-2:       #c3c2b7;
+    --muted:       #898781;
+    --grid:        #2c2c2a;
+    --baseline:    #383835;
+    --border:      rgba(255,255,255,0.10);
+    --accent:      #3987e5;
+    --accent-text: #86b6ef;
+    --accent-soft: rgba(57,135,229,0.16);
+    --g1:          #3987e5;
+    --g2:          #199e70;
+    --g3:          #c98500;
+    --g1-soft:     rgba(57,135,229,0.18);
+    --g2-soft:     rgba(25,158,112,0.20);
+    --g3-soft:     rgba(201,133,0,0.20);
+    --good-text:   #0ca30c;
+    --bad-text:    #e66767;
+    --shadow:      0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.3);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- reading progress (CSS scroll-driven, no JS) ---------- */
+.progress {
+  position: fixed; top: 0; left: 0; height: 3px; width: 100%;
+  background: var(--accent);
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  z-index: 50;
+  display: none;
+}
+@supports (animation-timeline: scroll()) {
+  .progress { display: block; animation: growbar linear; animation-timeline: scroll(root); }
+  @keyframes growbar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--page) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 24px;
+  height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.topbar-name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+.topbar-name span { color: var(--muted); font-weight: 500; }
+.topbar-links { display: flex; gap: 4px; flex-wrap: nowrap; }
+.topbar-links a {
+  color: var(--ink-2); text-decoration: none; font-size: 13.5px; font-weight: 550;
+  padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+}
+.topbar-links a:hover { background: var(--accent-soft); color: var(--accent-text); }
+@media (max-width: 780px) { .topbar-links { display: none; } }
+
+/* ---------- layout ---------- */
+main { display: block; }
+section { padding: 88px 24px 0; }
+section:last-of-type { padding-bottom: 40px; }
+.wrap  { max-width: 720px; margin: 0 auto; }
+.wide  { max-width: 960px; margin: 0 auto; }
+
+h1 {
+  font-size: clamp(2.2rem, 5.5vw, 3.4rem);
+  line-height: 1.06; letter-spacing: -0.03em; font-weight: 750;
+}
+h2 {
+  font-size: clamp(1.55rem, 3.4vw, 2.1rem);
+  line-height: 1.15; letter-spacing: -0.02em; font-weight: 700;
+  margin-bottom: 18px;
+}
+h3 { font-size: 1.08rem; font-weight: 650; margin: 28px 0 8px; }
+p  { color: var(--ink-2); margin-bottom: 14px; max-width: 66ch; }
+p strong, li strong { color: var(--ink); }
+.kicker { color: var(--muted); font-size: 14.5px; margin-bottom: 14px; }
+.lead { font-size: 1.12rem; }
+ul, ol { color: var(--ink-2); padding-left: 1.3em; margin-bottom: 14px; }
+li { margin-bottom: 6px; max-width: 62ch; }
+em { font-style: italic; }
+
+a.inline { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
+
+.term {
+  border-bottom: 2px solid var(--accent-soft);
+  font-weight: 600; color: var(--ink); font-style: normal;
+}
+
+/* ---------- hero ---------- */
+.hero { padding-top: 72px; }
+.hero .wrap { max-width: 860px; }
+.hero p.sub { font-size: 1.15rem; margin-top: 20px; max-width: 56ch; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; }
+.toc a {
+  font-size: 13.5px; font-weight: 550; text-decoration: none;
+  color: var(--ink-2); border: 1px solid var(--border); border-radius: 999px;
+  padding: 7px 14px; background: var(--surface);
+}
+.toc a:hover { border-color: var(--accent); color: var(--accent-text); }
+.rulebox {
+  margin-top: 36px; padding: 18px 22px; border-left: 3px solid var(--accent);
+  background: var(--surface); border-radius: 0 16px 16px 0;
+  color: var(--ink-2); font-size: 15.5px; max-width: 640px;
+}
+.rulebox b { color: var(--ink); }
+
+/* ---------- panels / figures ---------- */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 26px 28px;
+  margin: 26px 0 8px;
+}
+.fignote { color: var(--muted); font-size: 13px; margin: 10px 2px 0; max-width: none; }
+
+/* ---------- callout ---------- */
+.callout {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: var(--accent-soft);
+  border-radius: 16px; padding: 18px 22px; margin: 22px 0;
+}
+.callout .mark {
+  flex: none; width: 26px; height: 26px; border-radius: 999px;
+  background: var(--accent); color: #fff; font-weight: 800; font-size: 15px;
+  display: grid; place-items: center; margin-top: 2px;
+}
+.callout p { margin: 0; color: var(--ink); font-size: 15.5px; }
+
+/* ---------- controls ---------- */
+.seg { display: inline-flex; flex-wrap: wrap; gap: 6px; padding: 5px; background: var(--page); border: 1px solid var(--border); border-radius: 999px; }
+.seg button {
+  border: 0; background: transparent; color: var(--ink-2);
+  font: inherit; font-size: 14px; font-weight: 600;
+  padding: 8px 16px; border-radius: 999px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.seg button:not([aria-pressed="true"]):hover { background: var(--accent-soft); color: var(--accent-text); }
+
+button.step-btn {
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 14px; font-weight: 600;
+  padding: 9px 18px; border-radius: 999px; cursor: pointer;
+}
+button.step-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-text); }
+button.step-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.step-btn.primary:hover:not(:disabled) { color: #fff; filter: brightness(1.06); }
+button.step-btn:disabled { opacity: 0.4; cursor: default; }
+button:active:not(:disabled) { transform: translateY(1px); }
+
+:is(button, a, input, summary):focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px;
+}
+
+input[type="range"] { width: 100%; accent-color: var(--accent); height: 28px; }
+
+/* ---------- bars (shared chart bits) ---------- */
+.bar-row { display: grid; grid-template-columns: 130px 1fr 56px; align-items: center; gap: 12px; margin-bottom: 10px; }
+.bar-row .bar-label { font-size: 14px; color: var(--ink-2); font-weight: 550; text-align: right; }
+.bar-track { position: relative; height: 22px; background: transparent; border-left: 2px solid var(--baseline); }
+.bar-fill {
+  position: absolute; left: 0; top: 3px; bottom: 3px;
+  background: var(--accent); border-radius: 0 4px 4px 0;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 2px;
+}
+.bar-val { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .bar-fill { transition: none; } }
+@media (max-width: 560px) { .bar-row { grid-template-columns: 92px 1fr 48px; } .bar-row .bar-label { font-size: 12.5px; } }
+
+.delta { font-weight: 700; font-variant-numeric: tabular-nums; }
+.delta.up { color: var(--good-text); }
+.delta.down { color: var(--bad-text); }
+
+/* ---------- demo 1: exam ---------- */
+#exam-verdict { margin-top: 16px; font-size: 15.5px; color: var(--ink); min-height: 3.2em; }
+
+/* ---------- demo 2: lora slider ---------- */
+.lora-viz { display: flex; align-items: flex-end; gap: 28px; margin: 18px 0 6px; flex-wrap: wrap; }
+.lora-block { text-align: center; }
+.lora-block .cap { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.w-square {
+  width: 168px; height: 168px; border-radius: 8px;
+  background: repeating-linear-gradient(45deg, var(--grid), var(--grid) 6px, transparent 6px, transparent 12px);
+  border: 1.5px solid var(--baseline);
+  display: grid; place-items: center; color: var(--muted); font-size: 13px; font-weight: 600;
+}
+.ab-wrap { display: flex; align-items: flex-end; gap: 14px; }
+.mat-a { width: 14px; height: 168px; background: var(--accent); border-radius: 4px; transition: width 0.3s ease; }
+.mat-b { width: 168px; height: 14px; background: var(--accent); border-radius: 4px; align-self: flex-end; transition: height 0.3s ease; }
+.lora-plus { color: var(--muted); font-size: 22px; padding-bottom: 70px; }
+.lora-read { display: flex; gap: 32px; flex-wrap: wrap; margin-top: 18px; }
+.lora-read div b { display: block; font-size: 1.45rem; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.lora-read div span { font-size: 13px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .mat-a, .mat-b { transition: none; } }
+
+/* ---------- demo 4: playground ---------- */
+.pg-sentence { margin: 20px 0 4px; line-height: 2.2; }
+.pg-word {
+  display: inline-block; padding: 2px 6px; border-radius: 8px;
+  color: var(--ink-2); font-size: 16px;
+}
+.pg-word.focus { background: var(--accent-soft); color: var(--accent-text); font-weight: 700; }
+.pg-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+@media (max-width: 640px) { .pg-groups { grid-template-columns: 1fr; } }
+.pg-col { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--page); }
+.pg-col-head { padding: 12px 14px 10px; border-bottom: 1px solid var(--border); }
+.pg-col-head .gname { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.gdot { width: 10px; height: 10px; border-radius: 999px; flex: none; }
+.pg-col[data-g="0"] .gdot { background: var(--g1); }
+.pg-col[data-g="1"] .gdot { background: var(--g2); }
+.pg-col[data-g="2"] .gdot { background: var(--g3); }
+.pg-senscore { margin-top: 8px; font-size: 12.5px; color: var(--muted); min-height: 34px; }
+.pg-senscore b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.pg-senbar { height: 6px; border-radius: 4px; background: var(--grid); margin-top: 5px; overflow: hidden; }
+.pg-senbar i { display: block; height: 100%; border-radius: 4px; width: 0; transition: width 0.5s ease; }
+.pg-col[data-g="0"] .pg-senbar i { background: var(--g1); }
+.pg-col[data-g="1"] .pg-senbar i { background: var(--g2); }
+.pg-col[data-g="2"] .pg-senbar i { background: var(--g3); }
+.pg-cells { padding: 10px; display: grid; gap: 8px; }
+.pg-cell {
+  border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface);
+  padding: 7px 10px; display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; transition: opacity 0.4s ease, border-color 0.4s ease, background 0.4s ease;
+}
+.pg-cell .ename { color: var(--ink-2); font-weight: 550; }
+.pg-cell .escore { font-variant-numeric: tabular-nums; font-weight: 650; color: var(--muted); min-width: 42px; text-align: right; }
+.pg-cell.dim { opacity: 0.32; }
+.pg-cell.win { border-color: var(--ink); background: var(--accent-soft); }
+.pg-cell.win .escore { color: var(--ink); }
+.pg-col.gated[data-g="0"] .pg-cell:not(.win) { background: var(--g1-soft); }
+.pg-col.gated[data-g="1"] .pg-cell:not(.win) { background: var(--g2-soft); }
+.pg-col.gated[data-g="2"] .pg-cell:not(.win) { background: var(--g3-soft); }
+.pg-controls { display: flex; align-items: center; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+.pg-stepnum { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#pg-caption { margin-top: 14px; font-size: 15.5px; color: var(--ink); min-height: 4.6em; }
+@media (prefers-reduced-motion: reduce) { .pg-cell, .pg-senbar i { transition: none; } }
+
+/* ---------- demo 5: two-stage ---------- */
+.stage { overflow-x: auto; }
+.stage-svg { width: 100%; min-width: 620px; height: auto; display: block; }
+.stage-svg text { font-family: inherit; }
+.st-dot { transition: fill 0.5s ease; }
+.st-fade { opacity: 0; transition: opacity 0.5s ease; }
+.st-fade.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .st-dot, .st-fade { transition: none; } }
+#stage-caption { margin-top: 16px; font-size: 15.5px; color: var(--ink); min-height: 4.6em; }
+
+/* ---------- demo 6/7 ---------- */
+.loss-read { font-size: 1.5rem; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.loss-read small { font-size: 13px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+@media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ---------- results ---------- */
+.legend { display: flex; gap: 18px; margin-bottom: 16px; font-size: 13.5px; color: var(--ink-2); flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; font-weight: 550; }
+.legend i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
+.res-group { margin-bottom: 16px; }
+.res-name { font-size: 14px; font-weight: 600; color: var(--ink-2); margin-bottom: 4px; }
+.res-name.hero-row { color: var(--ink); font-weight: 750; }
+.res-pair .bar-row { grid-template-columns: 34px 1fr 52px; margin-bottom: 4px; }
+.res-pair .bar-tag { font-size: 11.5px; font-weight: 700; color: var(--muted); text-align: right; letter-spacing: 0.02em; }
+.res-pair .bar-fill.id-bar { background: var(--g1); }
+.res-pair .bar-fill.ood-bar { background: var(--g2); }
+details.tablev { margin-top: 18px; }
+details.tablev summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accent-text); }
+table { border-collapse: collapse; margin-top: 12px; font-size: 14px; width: 100%; max-width: 560px; }
+th, td { text-align: left; padding: 7px 14px 7px 0; border-bottom: 1px solid var(--grid); color: var(--ink-2); }
+th { color: var(--ink); font-weight: 650; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 26px 0 8px; }
+.tile {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 20px 22px; box-shadow: var(--shadow);
+}
+.tile b { display: block; font-size: 1.7rem; font-weight: 750; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.tile span { font-size: 13.5px; color: var(--ink-2); display: block; margin-top: 6px; line-height: 1.45; }
+
+/* ---------- quiz ---------- */
+details.qa {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 18px 22px; margin-bottom: 12px; box-shadow: var(--shadow);
+}
+details.qa summary {
+  cursor: pointer; font-weight: 650; color: var(--ink); font-size: 15.5px;
+  list-style: none; display: flex; gap: 12px; align-items: baseline;
+}
+details.qa summary::-webkit-details-marker { display: none; }
+details.qa summary::before { content: "?"; flex: none; width: 24px; height: 24px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-weight: 800; font-size: 14px; display: inline-grid; place-items: center; transform: translateY(3px); }
+details.qa[open] summary::before { content: "!"; background: var(--accent); color: #fff; }
+details.qa .ans { margin-top: 12px; padding-left: 36px; color: var(--ink-2); font-size: 15px; max-width: 60ch; }
+
+/* ---------- equations ---------- */
+details.math { margin: 18px 0; }
+details.math summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--accent-text); }
+.eq {
+  display: block; margin: 14px 0; padding: 14px 18px;
+  background: var(--page); border: 1px solid var(--border); border-radius: 8px;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 14.5px; color: var(--ink); overflow-x: auto; white-space: nowrap;
+}
+.eq sub, .eq sup { font-size: 10.5px; }
+
+/* ---------- footer ---------- */
+footer { margin-top: 96px; border-top: 1px solid var(--border); padding: 36px 24px 56px; }
+footer .wrap { max-width: 720px; }
+footer p { font-size: 14px; color: var(--muted); }
+
+/* ---------- reveal on scroll ---------- */
+.reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16,1,0.3,1); }
+.reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none; } }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="progress" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-name">HiMoLE <span>/ a paper, explained</span></div>
+    <nav class="topbar-links" aria-label="Sections">
+      <a href="#problem">The problem</a>
+      <a href="#lora">LoRA</a>
+      <a href="#himole">The idea</a>
+      <a href="#training">Training</a>
+      <a href="#results">Results</a>
+      <a href="#quiz">Quiz</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="wrap">
+    <p class="kicker">A plain-language walkthrough of a NeurIPS 2025 paper</p>
+    <h1>How do you teach a giant AI new skills without making it brittle?</h1>
+    <p class="sub">The paper is called <strong>HiMoLE: Towards OOD-Robust LoRA via Hierarchical Mixture of Experts</strong>. That title is a wall of jargon. By the end of this page, every word in it will feel obvious. No math background needed; the equations are optional extras you can skip.</p>
+    <div class="toc">
+      <a href="#problem">1. The problem</a>
+      <a href="#lora">2. Sticky notes (LoRA)</a>
+      <a href="#routing">3. The routing dilemma</a>
+      <a href="#himole">4. The big idea</a>
+      <a href="#training">5. Training</a>
+      <a href="#rules">6. Two house rules</a>
+      <a href="#results">7. Does it work?</a>
+      <a href="#quiz">8. Your turn</a>
+    </div>
+    <div class="rulebox">
+      <b>How this page works.</b> Richard Feynman had a test for understanding: if you can't explain something in simple words, you don't really get it. So each section starts with an everyday analogy, then shows you the real thing behind it. Every number here comes straight from the paper.
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1. THE PROBLEM ================= -->
+<section id="problem">
+  <div class="wrap reveal">
+    <h2>1. The problem: acing the practice test, flunking the real one</h2>
+    <p class="lead">Imagine a student who prepares for an exam by memorizing ten years of past papers. On questions that look like the past papers, they're brilliant. Then the examiner changes the style, and the student falls apart, because they learned the <em>patterns of the questions</em> instead of the <em>subject</em>.</p>
+    <p>Machine learning people have names for these two situations. Questions that look like the training material are called <span class="term">in-distribution</span> (ID). Questions from the same subject but in an unfamiliar style or source are <span class="term">out-of-distribution</span> (OOD). A model that holds up on both is called <span class="term">robust</span>.</p>
+    <p>The paper starts with an uncomfortable experiment. Take a large language model, fine-tune it on biomedical text (a task called named entity recognition: finding disease names, drugs, and so on), and measure it both ways. Try it yourself:</p>
+  </div>
+  <div class="wide reveal">
+    <div class="panel">
+      <div class="seg" role="group" aria-label="Choose test type">
+        <button id="exam-id" aria-pressed="true">Familiar questions (ID)</button>
+        <button id="exam-ood" aria-pressed="false">Unfamiliar questions (OOD)</button>
+      </div>
+      <div style="margin-top:22px">
+        <div class="bar-row">
+          <span class="bar-label">Before tuning</span>
+          <div class="bar-track"><div class="bar-fill" id="exam-bar-base" style="width:52.5%"></div></div>
+          <span class="bar-val" id="exam-val-base">52.5</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">After tuning</span>
+          <div class="bar-track"><div class="bar-fill" id="exam-bar-lora" style="width:73.9%"></div></div>
+          <span class="bar-val" id="exam-val-lora">73.9</span>
+        </div>
+      </div>
+      <p id="exam-verdict">On familiar material, tuning works beautifully: the score jumps from 52.5 to 73.9. That's a gain of <span class="delta up">+21.4</span> points. Now click the other button.</p>
+    </div>
+    <p class="fignote">F1 score (0 to 100, higher is better) on biomedical entity recognition. Numbers from Table 1 of the paper.</p>
+  </div>
+  <div class="wrap reveal">
+    <div class="callout"><div class="mark">!</div>
+      <p><strong>This is the punchline of the whole paper.</strong> On unfamiliar biomedical text, the tuned model scored <em>lower</em> than the untouched model. The standard way of teaching a model new skills actively made it worse at the thing it was supposed to be learning, just phrased differently. HiMoLE exists to fix this.</p>
+    </div>
+    <p>To understand the fix, you need two ingredients first: what "tuning" actually is, and what a "team of experts" means for a neural network. Both are simpler than they sound.</p>
+  </div>
+</section>
+
+<!-- ================= 2. LORA ================= -->
+<section id="lora">
+  <div class="wrap reveal">
+    <h2>2. First ingredient: LoRA, the sticky-note method</h2>
+    <p class="lead">A large language model is like a printed encyclopedia with billions of entries. Retraining the whole thing for a new specialty would mean reprinting every page: slow, expensive, and risky. So instead, you freeze the book and add <em>sticky notes</em> with small corrections and additions. That's <span class="term">LoRA</span> (Low-Rank Adaptation).</p>
+    <p>Here's the tiny bit of structure worth knowing. The model's knowledge lives in huge grids of numbers called weight matrices. LoRA doesn't touch them. It adds a correction that is deliberately skinny: instead of one huge grid, it learns two thin strips, called <strong>A</strong> and <strong>B</strong>, which multiply together to fake a full-size correction. The strip thickness is called the <span class="term">rank</span>, written <em>r</em>. Skinnier strips mean fewer numbers to learn.</p>
+  </div>
+  <div class="wide reveal">
+    <div class="panel">
+      <div class="lora-viz">
+        <div class="lora-block">
+          <div class="w-square">frozen weights<br>4096 × 4096</div>
+          <div class="cap">The original grid: 16.8M numbers, never touched</div>
+        </div>
+        <div class="lora-plus" aria-hidden="true">+</div>
+        <div class="lora-block">
+          <div class="ab-wrap">
+            <div class="mat-a" id="mat-a"></div>
+            <div class="mat-b" id="mat-b"></div>
+          </div>
+          <div class="cap">The sticky note: strip A × strip B<br>(thickness exaggerated 20× so you can see it)</div>
+        </div>
+      </div>
+      <label for="rank-slider" style="display:block; font-size:14px; font-weight:600; margin:18px 0 6px;">Drag to change the rank <em>r</em></label>
+      <input type="range" id="rank-slider" min="0" max="7" step="1" value="3" aria-label="LoRA rank">
+      <div class="lora-read">
+        <div><b id="rank-val">r = 8</b><span>strip thickness (the paper's choice)</span></div>
+        <div><b id="rank-params">65,536</b><span>numbers to learn</span></div>
+        <div><b id="rank-pct">0.39%</b><span>of the frozen grid's size</span></div>
+      </div>
+    </div>
+    <p class="fignote">Illustrative sizes for one weight matrix. The paper uses rank 8 for HiMoLE's experts, and rank 80 for the plain-LoRA baseline so both have the same total budget of learnable numbers.</p>
+  </div>
+  <div class="wrap reveal">
+    <p>LoRA is cheap and it works, which is why everyone uses it. But look back at section 1: that failing model <em>was</em> a LoRA model. One set of sticky notes gets stretched across every kind of example in the training data, so it averages everything together and clings to surface patterns. The next idea tries to fix that by using several sets of notes.</p>
+  </div>
+</section>
+
+<!-- ================= 3. ROUTING DILEMMA ================= -->
+<section id="routing">
+  <div class="wrap reveal">
+    <h2>3. Second ingredient: a team of specialists, and a dilemma</h2>
+    <p class="lead">If one set of sticky notes gets muddled trying to cover everything, why not keep several sets, each specializing in one kind of material, and pick the right one for each input? That's a <span class="term">mixture of experts</span>: the "experts" are just separate LoRA modules, and a small learned component called a <span class="term">router</span> decides which experts handle which input.</p>
+    <p>The interesting question turns out to be: <strong>what should the router look at when it decides?</strong> Existing methods answer it in one of two ways:</p>
+    <ul>
+      <li><strong>Word-by-word (token routing).</strong> The router picks experts separately for every word, based on that word alone. Like a mail room that reads each word of a letter and forwards each one somewhere different.</li>
+      <li><strong>Whole-sentence (sentence routing).</strong> The router skims the entire input once and picks experts for all of it. Like a receptionist who reads the whole letter, then hands it to one department.</li>
+    </ul>
+    <p>The paper measured both, and found a genuine trade-off:</p>
+  </div>
+  <div class="wide reveal">
+    <div class="panel">
+      <div class="seg" role="group" aria-label="Choose routing style">
+        <button data-route="token" aria-pressed="true">Word-by-word</button>
+        <button data-route="sentence" aria-pressed="false">Whole-sentence</button>
+        <button data-route="hier" aria-pressed="false">Both (HiMoLE)</button>
+      </div>
+      <div style="margin-top:22px">
+        <div class="bar-row">
+          <span class="bar-label">Familiar (ID)</span>
+          <div class="bar-track"><div class="bar-fill" id="route-bar-id" style="width:88%"></div></div>
+          <span class="bar-val" id="route-val-id">88</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Unfamiliar (OOD)</span>
+          <div class="bar-track"><div class="bar-fill" id="route-bar-ood" style="width:52%"></div></div>
+          <span class="bar-val" id="route-val-ood">52</span>
+        </div>
+      </div>
+      <p id="route-verdict" style="margin-top:14px; font-size:15.5px; color:var(--ink); min-height:3.2em;">Word-by-word routing is razor sharp on familiar data but falls hard on unfamiliar data: individual words are exactly the surface detail that changes between sources.</p>
+    </div>
+    <p class="fignote">Illustrative scores, patterned after Figure 1(d) of the paper, which compares routing granularities across one OOD and four ID validation sets.</p>
+  </div>
+  <div class="wrap reveal">
+    <p>Why does this happen? Think about the student again. Word-level details are like the exact phrasing of past exam questions: extremely useful until the phrasing changes, then misleading. Whole-sentence meaning is like actually understanding the subject: less precise on any one question, but stable when the style shifts. Statisticians call this a <span class="term">bias-variance trade-off</span>; you can just think of it as <em>detail versus stability</em>.</p>
+    <p>So: details win at home, stability wins away. The obvious wish is to have both at once. That wish is HiMoLE.</p>
+  </div>
+</section>
+
+<!-- ================= 4. THE BIG IDEA ================= -->
+<section id="himole">
+  <div class="wrap reveal">
+    <h2>4. The big idea: two routers that must agree</h2>
+    <p class="lead">Picture a hospital. Patients aren't assigned to a doctor by a clerk who reads their file one word at a time, and they aren't treated by the front desk either. Two decisions happen in order: <strong>triage reads the whole case and picks a department</strong>, then <strong>inside that department, specific specialists take on the details</strong>.</p>
+    <p>HiMoLE builds exactly this into the model. The experts are organized into <em>N</em> departments the paper calls <span class="term">Knowledge Competition Groups</span> (KCGs), and each department contains <em>M</em> specialists, the <span class="term">Knowledge Collaboration Experts</span> (KCEs). Each specialist is a small LoRA module, the sticky notes from section 2. With <em>N</em> = 3 and <em>M</em> = 4 you get 12 experts arranged in a 3 × 4 grid.</p>
+    <p>Two routers score them:</p>
+    <ul>
+      <li>The <strong>sentence router</strong> skims the whole input (technically: it averages the word representations into one summary) and gives each <em>department</em> a score. Three departments, three numbers.</li>
+      <li>The <strong>token router</strong> looks at one word at a time and gives every individual <em>expert</em> a score. Twelve experts, twelve numbers.</li>
+    </ul>
+    <p>Then comes the one clever move the whole paper turns on: <strong>multiply the two</strong>. Each department's sentence score is stretched across its four specialists and multiplied into their word scores. Multiplying acts like the word AND: if either the sentence view or the word view says "irrelevant" (a score near zero), the product is near zero, and that expert stays quiet. An expert fires only when the big picture <em>and</em> the fine detail both point at it. Finally, only the top 2 experts of the 12 actually run.</p>
+    <p>Watch it happen. Pick a sentence, then step through the four moves:</p>
+  </div>
+  <div class="wide reveal">
+    <div class="panel">
+      <div class="seg" role="group" aria-label="Choose an example sentence">
+        <button data-ex="0" aria-pressed="true">A medical sentence</button>
+        <button data-ex="1" aria-pressed="false">A business sentence</button>
+        <button data-ex="2" aria-pressed="false">A tricky mixed one</button>
+      </div>
+      <p class="pg-sentence" id="pg-sentence"></p>
+      <p class="fignote" style="margin-top:0">We follow the highlighted word. The real model repeats this for every word in parallel. Scores are hand-picked for teaching; the arithmetic on them is computed live.</p>
+      <div class="pg-groups" id="pg-groups"></div>
+      <div class="pg-controls">
+        <button class="step-btn" id="pg-back">Back</button>
+        <button class="step-btn primary" id="pg-next">Next step</button>
+        <span class="pg-stepnum" id="pg-stepnum">Step 1 of 4</span>
+      </div>
+      <p id="pg-caption" aria-live="polite"></p>
+    </div>
+    <p class="fignote">A 3-department × 4-specialist layout, matching the paper's setup for sentiment analysis and question answering (the biomedical task uses 4 departments).</p>
+  </div>
+  <div class="wrap reveal">
+    <div class="callout"><div class="mark">!</div>
+      <p><strong>Try the tricky sentence and look at the word "doctor".</strong> On its own, that word screams Medicine, and a word-only router would send it to two medicine specialists. But the sentence is about a match, so the sentence router boosts Sports, and the final pick becomes one medicine specialist plus one sports specialist. That's the whole trick: the stable big-picture view vetoes the misleading detail without erasing it.</p>
+    </div>
+    <p>Names make sense now, too. Departments <em>compete</em> with each other for inputs (so unrelated material stops interfering, which the paper calls negative transfer), while specialists inside one department <em>collaborate</em> on shared material. Hence Knowledge <em>Competition</em> Groups and Knowledge <em>Collaboration</em> Experts.</p>
+    <details class="math">
+      <summary>The actual equations, for the curious</summary>
+      <p style="margin-top:12px">One summary per sentence, made by averaging word representations:</p>
+      <code class="eq">h<sub>sen</sub> = average_pool(h<sub>token</sub>)</code>
+      <p>Each router is a single learned matrix producing scores. G<sub>sen</sub> has N entries (departments), G<sub>token</sub> has N×M entries (experts):</p>
+      <code class="eq">G<sub>sen</sub> = W<sub>sen</sub> · h<sub>sen</sub>&nbsp;&nbsp;&nbsp;&nbsp;G<sub>token</sub> = W<sub>token</sub> · h<sub>token</sub></code>
+      <p>The gate: broadcast-multiply (⊙), squash into probabilities (softmax), keep the top k = 2:</p>
+      <code class="eq">G<sub>hie</sub> = KeepTopK( Softmax( G<sub>sen</sub> ⊙ G<sub>token</sub> ) )</code>
+      <p>The layer's output is the frozen original plus the weighted expert corrections:</p>
+      <code class="eq">o = W<sub>0</sub> · h<sub>token</sub> + Σ<sub>i</sub> G<sub>hie</sub><sup>(i)</sup> · E<sub>i</sub> · h<sub>token</sub></code>
+      <p>The dimension subtlety implementers get wrong: G<sub>sen</sub> has N numbers, G<sub>token</sub> has N×M, so the ⊙ stretches each department score across its M experts before multiplying. This layer replaces the feed-forward block in every transformer layer of the model.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ================= 5. TRAINING ================= -->
+<section id="training">
+  <div class="wrap reveal">
+    <h2>5. Training it: why the order of steps matters</h2>
+    <p class="lead">There's a chicken-and-egg problem hiding in this design. The router can only learn to send inputs to the right department if the departments are already different from one another. But the departments only become different if the router sends them different inputs. Start everything from scratch at once and you get twelve identical, interchangeable experts and a router with no reason to prefer any of them.</p>
+    <p>The paper's answer is to train in two stages, and the first stage is the one people would be tempted to skip:</p>
+  </div>
+  <div class="wide reveal">
+    <div class="panel">
+      <div class="stage" id="stage-fig" data-step="1">
+        <svg class="stage-svg" viewBox="0 0 760 300" role="img" aria-label="Diagram of the two-stage training pipeline: sentences are embedded, clustered into groups, each group trains one expert department, then everything trains together.">
+          <g id="stage-dots"></g>
+          <!-- KCG boxes (step 3+) -->
+          <g class="st-fade" id="st-boxes">
+            <g>
+              <rect x="470" y="28"  width="180" height="58" rx="12" fill="none" stroke="var(--g1)" stroke-width="1.5"/>
+              <text x="560" y="52"  text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">Department 1</text>
+              <text x="560" y="71"  text-anchor="middle" font-size="11" fill="var(--muted)">4 specialists, same start</text>
+            </g>
+            <g>
+              <rect x="470" y="120" width="180" height="58" rx="12" fill="none" stroke="var(--g2)" stroke-width="1.5"/>
+              <text x="560" y="144" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">Department 2</text>
+              <text x="560" y="163" text-anchor="middle" font-size="11" fill="var(--muted)">4 specialists, same start</text>
+            </g>
+            <g>
+              <rect x="470" y="212" width="180" height="58" rx="12" fill="none" stroke="var(--g3)" stroke-width="1.5"/>
+              <text x="560" y="236" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">Department 3</text>
+              <text x="560" y="255" text-anchor="middle" font-size="11" fill="var(--muted)">4 specialists, same start</text>
+            </g>
+          </g>
+          <!-- arrows cluster -> box (step 3) -->
+          <g class="st-fade" id="st-arrows" stroke-width="1.5" fill="none">
+            <path d="M 305 70  C 380 62, 410 58, 462 57"   stroke="var(--g1)"/>
+            <path d="M 305 150 C 380 150, 410 149, 462 149" stroke="var(--g2)"/>
+            <path d="M 305 232 C 380 240, 410 242, 462 241" stroke="var(--g3)"/>
+          </g>
+          <!-- stage 2 wrapper (step 4) -->
+          <g class="st-fade" id="st-joint">
+            <rect x="452" y="10" width="296" height="278" rx="16" fill="none" stroke="var(--accent)" stroke-width="2"/>
+            <rect x="668" y="118" width="66" height="62" rx="10" fill="var(--accent)"/>
+            <text x="701" y="145" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">two</text>
+            <text x="701" y="161" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">routers</text>
+            <text x="600" y="296" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--accent-text)">everything trains together on the full dataset</text>
+          </g>
+        </svg>
+      </div>
+      <div class="pg-controls">
+        <button class="step-btn" id="stage-back">Back</button>
+        <button class="step-btn primary" id="stage-next">Next step</button>
+        <span class="pg-stepnum" id="stage-stepnum">Step 1 of 4</span>
+      </div>
+      <p id="stage-caption" aria-live="polite"></p>
+    </div>
+  </div>
+  <div class="wrap reveal">
+    <p>How much does stage 1 matter? The paper ran the ablation: train the identical architecture with and without it, and compare. On one slice of the biomedical data, skipping stage 1 costs <strong>31.9 points of F1</strong>. That's not a tweak; that's the difference between a working system and a broken one.</p>
+  </div>
+  <div class="wide reveal">
+    <div class="panel">
+      <div class="legend">
+        <span><i style="background:var(--g1)"></i>Full two-stage training</span>
+        <span><i style="background:var(--baseline)"></i>Stage 1 skipped</span>
+      </div>
+      <div class="res-group">
+        <div class="res-name">Hardest ID slice (ID2)</div>
+        <div class="res-pair">
+          <div class="bar-row"><span class="bar-tag" aria-hidden="true"></span><div class="bar-track"><div class="bar-fill" style="width:64%; background:var(--g1)"></div></div><span class="bar-val">64.0</span></div>
+          <div class="bar-row"><span class="bar-tag" aria-hidden="true"></span><div class="bar-track"><div class="bar-fill" style="width:32.1%; background:var(--baseline)"></div></div><span class="bar-val">32.1</span></div>
+        </div>
+      </div>
+      <div class="res-group">
+        <div class="res-name">Unfamiliar data (OOD)</div>
+        <div class="res-pair">
+          <div class="bar-row"><span class="bar-tag" aria-hidden="true"></span><div class="bar-track"><div class="bar-fill" style="width:65.3%; background:var(--g1)"></div></div><span class="bar-val">65.3</span></div>
+          <div class="bar-row"><span class="bar-tag" aria-hidden="true"></span><div class="bar-track"><div class="bar-fill" style="width:53.5%; background:var(--baseline)"></div></div><span class="bar-val">53.5</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="fignote">F1 scores from the paper's Table 3, biomedical entity recognition. Without stage 1, the model also started producing badly formatted outputs far more often.</p>
+  </div>
+</section>
+
+<!-- ================= 6. HOUSE RULES ================= -->
+<section id="rules">
+  <div class="wrap reveal">
+    <h2>6. Two house rules during training</h2>
+    <p class="lead">In stage 2, the model is scored on three things at once: how well it does the actual task, plus two extra penalty terms that keep the team of experts healthy. Both penalties guard against a failure mode you can see coming from the hospital analogy.</p>
+    <h3>Rule one: don't let one specialist take all the patients</h3>
+    <p>Left alone, routers develop favorites. A slightly better expert gets more inputs, which trains it more, which makes it better, until one expert does everything and the other eleven atrophy. The <span class="term">load-balancing penalty</span> gets larger the more lopsided the assignments become, so training is nudged toward spreading the work. Drag the slider to feel its shape:</p>
+  </div>
+  <div class="wide reveal">
+    <div class="panel">
+      <div class="two-col">
+        <div>
+          <label for="load-slider" style="display:block; font-size:14px; font-weight:600; margin-bottom:6px;">How lopsided are the assignments?</label>
+          <input type="range" id="load-slider" min="0" max="100" value="0" aria-label="Load skew">
+          <div id="load-bars" style="margin-top:18px"></div>
+        </div>
+        <div>
+          <p style="font-size:14px; margin-bottom:6px;">Penalty value</p>
+          <div class="loss-read"><span id="load-loss">1.00</span> <small id="load-word">perfectly even (the minimum)</small></div>
+          <p style="font-size:14px; margin-top:14px;">The penalty is exactly 1.00 when all four experts share the work equally, and climbs toward 4 as one expert hoards everything. The optimizer keeps trying to pull it back down.</p>
+        </div>
+      </div>
+    </div>
+    <p class="fignote">Four experts shown for clarity, using the paper's Switch-style penalty with the simplification that assignment shares equal router probabilities.</p>
+  </div>
+  <div class="wrap reveal">
+    <h3>Rule two: don't let the departments become clones</h3>
+    <p>The other failure is quieter: two departments could drift toward producing the same output, and then you've paid for twelve experts and gotten six. The <span class="term">diversity penalty</span> measures how similar the departments' outputs are, as an angle: outputs pointing the same way are clones; outputs at right angles are doing genuinely different jobs. Training pushes the similarity down.</p>
+  </div>
+  <div class="wide reveal">
+    <div class="panel">
+      <div class="two-col">
+        <div>
+          <label for="div-slider" style="display:block; font-size:14px; font-weight:600; margin-bottom:6px;">Angle between two departments' outputs</label>
+          <input type="range" id="div-slider" min="0" max="180" value="24" aria-label="Angle between expert outputs">
+          <svg viewBox="0 0 260 170" style="width:100%; max-width:320px; margin-top:10px" role="img" aria-label="Two arrows from one point; the angle between them changes with the slider.">
+            <line x1="40" y1="140" x2="220" y2="140" stroke="var(--grid)" stroke-width="1"/>
+            <g id="div-arrow1"><line x1="40" y1="140" x2="190" y2="140" stroke="var(--g1)" stroke-width="3" stroke-linecap="round"/><circle cx="190" cy="140" r="5" fill="var(--g1)"/></g>
+            <g id="div-arrow2"><line x1="40" y1="140" x2="190" y2="140" stroke="var(--g2)" stroke-width="3" stroke-linecap="round"/><circle cx="190" cy="140" r="5" fill="var(--g2)"/></g>
+            <text x="40" y="160" font-size="11" fill="var(--muted)" font-family="inherit">both start here</text>
+          </svg>
+        </div>
+        <div>
+          <p style="font-size:14px; margin-bottom:6px;">Similarity (what the penalty averages)</p>
+          <div class="loss-read"><span id="div-loss">0.91</span> <small id="div-word">nearly clones</small></div>
+          <p style="font-size:14px; margin-top:14px;">1.00 means identical direction, 0.00 means fully independent jobs. The penalty is the average similarity over every pair of departments; lower is better.</p>
+        </div>
+      </div>
+    </div>
+    <p class="fignote">In the paper this is cosine similarity between normalized department outputs, sampled every ten layers to keep it cheap. Removing it costs a small but statistically significant amount of performance.</p>
+  </div>
+  <div class="wrap reveal">
+    <details class="math">
+      <summary>The full training objective, for the curious</summary>
+      <code class="eq">L = L<sub>task</sub> + α · L<sub>aux</sub> + β · L<sub>diverse</sub></code>
+      <p>L<sub>task</sub> is the ordinary language-modeling loss. L<sub>aux</sub> = N · Σ<sub>i</sub> F<sub>i</sub> P<sub>i</sub>, where F<sub>i</sub> is the fraction of words sent to expert i and P<sub>i</sub> its average router probability. L<sub>diverse</sub> is the mean pairwise cosine similarity between normalized department outputs. Stage 1 runs at learning rate 3e-4; stage 2 at 3e-5.</p>
+    </details>
+  </div>
+</section>
+
+<!-- ================= 7. RESULTS ================= -->
+<section id="results">
+  <div class="wrap reveal">
+    <h2>7. So, does it work?</h2>
+    <p class="lead">Back to the experiment that started all this: biomedical entity recognition, scored on familiar and unfamiliar text. Now with every method in the race. Watch two things: who wins the left bars (familiar), and who stops the collapse in the right bars (unfamiliar).</p>
+  </div>
+  <div class="wide reveal">
+    <div class="panel">
+      <div class="legend">
+        <span><i style="background:var(--g1)"></i>Familiar (ID), F1</span>
+        <span><i style="background:var(--g2)"></i>Unfamiliar (OOD), F1</span>
+      </div>
+      <div id="results-chart"></div>
+      <details class="tablev">
+        <summary>View these numbers as a table</summary>
+        <table>
+          <thead><tr><th>Method</th><th class="num">ID F1</th><th class="num">OOD F1</th></tr></thead>
+          <tbody>
+            <tr><td>Base model (no tuning)</td><td class="num">52.5</td><td class="num">65.8</td></tr>
+            <tr><td>LoRA</td><td class="num">73.9</td><td class="num">61.9</td></tr>
+            <tr><td>MixLoRA</td><td class="num">76.0</td><td class="num">61.0</td></tr>
+            <tr><td>HydraLoRA</td><td class="num">77.3</td><td class="num">62.9</td></tr>
+            <tr><td><strong>HiMoLE</strong></td><td class="num"><strong>77.9</strong></td><td class="num"><strong>65.3</strong></td></tr>
+          </tbody>
+        </table>
+      </details>
+    </div>
+    <p class="fignote">Table 1 of the paper. MixLoRA and HydraLoRA are earlier expert-mixture methods that route word-by-word only. All tuned methods use the same budget of learnable numbers.</p>
+  </div>
+  <div class="wrap reveal">
+    <p>Every tuned method gains about 20+ points on familiar data, and every <em>earlier</em> method pays for it on unfamiliar data, landing below the untouched model. HiMoLE is the only one that takes the full gain <strong>and</strong> climbs back to the untouched model's level on unfamiliar text. It doesn't magically beat the base model away from home; it stops the damage while keeping the win.</p>
+    <p>The paper checks the idea from a few more angles:</p>
+  </div>
+  <div class="wide reveal">
+    <div class="tiles">
+      <div class="tile"><b>+5.0%</b><span>largest OOD gain over the best earlier method, across the three tasks tested</span></div>
+      <div class="tile"><b>20.6%</b><span>drop in expert-workload imbalance versus word-only routing on the biomedical task</span></div>
+      <div class="tile"><b>45.1% vs 40.3%</b><span>accuracy kept under deliberate typo attacks: HiMoLE versus word-only routing</span></div>
+      <div class="tile"><b>~1%</b><span>of the model's parameters are trainable, so it runs about as fast as the base model</span></div>
+    </div>
+    <p class="fignote" style="max-width:960px; margin-left:auto; margin-right:auto;">From the paper's Figure 4, Table 2, and Appendix E. The typo test corrupts characters in the input; whole-sentence context barely changes, so the sentence router keeps routing sensibly while word-only routers get dragged around by the noise.</p>
+  </div>
+  <div class="wrap reveal">
+    <p>Honest fine print, because the Feynman method demands it: the gains vary by domain (bigger in knowledge-heavy fields like biomedicine, smaller in general text), OOD scores remain below ID scores for every method, and the whole comparison is at one fixed parameter budget. HiMoLE narrows the gap; it does not abolish it.</p>
+  </div>
+</section>
+
+<!-- ================= 8. QUIZ ================= -->
+<section id="quiz">
+  <div class="wrap reveal">
+    <h2>8. Your turn: explain it back</h2>
+    <p class="lead">Feynman's actual method has a step most people skip: after learning something, try to teach it, notice where you stumble, and go back. Try answering each of these out loud before you peek.</p>
+    <details class="qa"><summary>Why did ordinary fine-tuning make the model <em>worse</em> on unfamiliar text?</summary>
+      <div class="ans">Fine-tuning rewards whatever reduces error on the training data, and surface patterns (phrasings, formats, local word statistics) reduce it fastest. The model leans on those patterns, and they're exactly what changes when the data source changes. Like the student memorizing past papers, it traded understanding for pattern-matching.</div>
+    </details>
+    <details class="qa"><summary>Why multiply the two routers' scores instead of adding them?</summary>
+      <div class="ans">Multiplication behaves like AND: if either score is near zero, the product is near zero, so an expert needs approval from both the whole-sentence view and the word-level view to fire. Addition behaves like OR: a huge word-level score could single-handedly activate an expert even when the sentence context says it's irrelevant, which is precisely the failure being fixed.</div>
+    </details>
+    <details class="qa"><summary>Why can't you skip stage 1 and just train everything together?</summary>
+      <div class="ans">Chicken and egg. A router learns by noticing that some experts handle certain inputs better, but freshly initialized experts are all equally mediocre, so the router gets no signal, so the experts never specialize. Stage 1 breaks the loop by force: cluster the data by meaning, train each department alone on one cluster, and only then let the router learn on top of genuinely different departments. Skipping it cost up to 31.9 F1 points.</div>
+    </details>
+    <details class="qa"><summary>What would go wrong without the two extra penalties?</summary>
+      <div class="ans">Without load balancing, a rich-get-richer loop concentrates all the work in one or two experts and the rest waste their capacity. Without the diversity penalty, departments drift into producing near-identical outputs, so you pay for N departments and effectively get fewer. Both penalties protect the same asset: genuinely different specialists worth routing between.</div>
+    </details>
+  </div>
+</section>
+
+<!-- ================= 9. RECAP ================= -->
+<section id="recap">
+  <div class="wrap reveal">
+    <h2>The whole paper in five sentences</h2>
+    <ol>
+      <li>Fine-tuning a big model with LoRA works great on familiar data but can make it <em>worse</em> on the same subject from an unfamiliar source.</li>
+      <li>Splitting the added capacity into routed experts doesn't fix it, because word-by-word routing overfits to details while whole-sentence routing is stable but coarse.</li>
+      <li>HiMoLE uses both: a sentence router picks a department, a token router picks specialists inside it, and their scores multiply so an expert fires only when both views agree.</li>
+      <li>It's trained in two stages: first each department specializes alone on one cluster of the data, then everything trains together with penalties against lopsided workloads and clone departments.</li>
+      <li>The result keeps all of fine-tuning's gains on familiar data while climbing back to the untouched model's level on unfamiliar data, where every earlier method fell below it.</li>
+    </ol>
+    <p style="margin-top:22px">If you can retell those five sentences in your own words, you understand the paper. That was the deal.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>A study aid for the paper "HiMoLE: Towards OOD-Robust LoRA via Hierarchical Mixture of Experts" (Yinuo Jiang et al., Zhejiang University and Ant Group, NeurIPS 2025). All reported numbers come from the paper's Tables 1 to 3 and Figure 4; the interactive demos use hand-picked teaching values where noted. The full extracted paper text lives in this repository at paper/himole.md.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- reveal on scroll ---------- */
+  var revealEls = document.querySelectorAll(".reveal");
+  if (reduceMotion || !("IntersectionObserver" in window)) {
+    revealEls.forEach(function (el) { el.classList.add("in"); });
+  } else {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12 });
+    revealEls.forEach(function (el) { io.observe(el); });
+  }
+
+  /* ---------- demo 1: exam ---------- */
+  var EXAM = {
+    id:  { base: 52.5, lora: 73.9,
+           text: "On familiar material, tuning works beautifully: the score jumps from 52.5 to 73.9. That's a gain of <span class=\"delta up\">+21.4</span> points. Now click the other button." },
+    ood: { base: 65.8, lora: 61.9,
+           text: "On unfamiliar material, the tuned model scores <strong>lower than the model nobody touched</strong>: 61.9 against 65.8, a drop of <span class=\"delta down\">-3.9</span>. The tuning that helped at home hurts away from home." }
+  };
+  function setExam(mode) {
+    var d = EXAM[mode];
+    $("exam-bar-base").style.width = d.base + "%";
+    $("exam-bar-lora").style.width = d.lora + "%";
+    $("exam-val-base").textContent = d.base.toFixed(1);
+    $("exam-val-lora").textContent = d.lora.toFixed(1);
+    $("exam-verdict").innerHTML = d.text;
+    $("exam-id").setAttribute("aria-pressed", mode === "id");
+    $("exam-ood").setAttribute("aria-pressed", mode === "ood");
+  }
+  $("exam-id").addEventListener("click", function () { setExam("id"); });
+  $("exam-ood").addEventListener("click", function () { setExam("ood"); });
+
+  /* ---------- demo 2: lora rank slider ---------- */
+  var RANKS = [1, 2, 4, 8, 16, 32, 64, 80];
+  var D = 4096, FULL = D * D;
+  function setRank(i) {
+    var r = RANKS[i];
+    var params = r * (D + D);
+    $("rank-val").textContent = "r = " + r;
+    $("rank-params").textContent = params.toLocaleString("en-US");
+    $("rank-pct").textContent = (params / FULL * 100).toFixed(r < 16 ? 2 : 1) + "%";
+    var px = Math.max(2, Math.round(r / D * 168 * 20)); /* 20x exaggeration */
+    $("mat-a").style.width = px + "px";
+    $("mat-b").style.height = px + "px";
+  }
+  $("rank-slider").addEventListener("input", function () { setRank(+this.value); });
+  setRank(3);
+
+  /* ---------- demo 3: routing granularity ---------- */
+  var ROUTES = {
+    token:    { id: 88, ood: 52, text: "Word-by-word routing is razor sharp on familiar data but falls hard on unfamiliar data: individual words are exactly the surface detail that changes between sources." },
+    sentence: { id: 74, ood: 70, text: "Whole-sentence routing barely flinches when the source changes, because overall meaning is stable. But it's coarse: it gives up several points on familiar data by ignoring useful detail." },
+    hier:     { id: 87, ood: 73, text: "Route on both, and each covers the other's weakness: near word-level sharpness at home, near sentence-level stability away. This is the shape HiMoLE aims for." }
+  };
+  document.querySelectorAll("[data-route]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var d = ROUTES[btn.dataset.route];
+      $("route-bar-id").style.width = d.id + "%";
+      $("route-bar-ood").style.width = d.ood + "%";
+      $("route-val-id").textContent = d.id;
+      $("route-val-ood").textContent = d.ood;
+      $("route-verdict").textContent = d.text;
+      document.querySelectorAll("[data-route]").forEach(function (b) {
+        b.setAttribute("aria-pressed", b === btn);
+      });
+    });
+  });
+
+  /* ---------- demo 4: routing playground ---------- */
+  var GROUPS = ["Medicine", "Business", "Sports"];
+  var EXAMPLES = [
+    { words: ["The", "patient's", "rash", "improved", "after", "the", "new", "ointment."],
+      focus: 2,
+      sen: [2.2, 0.4, 0.6],
+      tok: [1.9, 1.5, 1.1, 0.7, 0.5, 0.3, 0.4, 0.2, 0.8, 0.6, 0.5, 0.3] },
+    { words: ["Their", "startup", "burned", "through", "its", "funding", "in", "a", "year."],
+      focus: 5,
+      sen: [0.5, 2.3, 0.4],
+      tok: [0.4, 0.3, 0.5, 0.2, 1.8, 1.6, 1.0, 0.6, 0.5, 0.4, 0.3, 0.2] },
+    { words: ["The", "team's", "doctor", "cleared", "him", "to", "play", "in", "the", "final."],
+      focus: 2,
+      sen: [1.3, 0.2, 1.8],
+      tok: [2.0, 1.6, 0.8, 0.5, 0.3, 0.2, 0.2, 0.1, 1.2, 1.5, 0.7, 0.4] }
+  ];
+  var PG_CAPTIONS = [
+    function (ex) {
+      return "<strong>Step 1: skim the whole sentence.</strong> The sentence router averages all the words into one summary and scores each department. Here it reads the full sentence and rates the departments " +
+        ex.sen.map(function (s, g) { return GROUPS[g] + " " + s.toFixed(1); }).join(", ") + ". No expert has been chosen yet; this is only the big picture.";
+    },
+    function (ex) {
+      return "<strong>Step 2: look at one word.</strong> The token router scores all 12 individual experts using only the highlighted word, \"" +
+        ex.words[ex.focus].replace(/[.,]/g, "") + "\". Notice these scores ignore context: they reflect what the word suggests on its own.";
+    },
+    function () {
+      return "<strong>Step 3: multiply, because both must agree.</strong> Each department's sentence score is stretched across its four experts and multiplied into their word scores (the column tint shows the stretch). A strong word score inside a weak department gets crushed toward zero. This multiplication is the AND gate at the heart of HiMoLE.";
+    },
+    function (ex, top) {
+      return "<strong>Step 4: keep the top 2.</strong> The 12 products go through a softmax (squashing them into shares of 100%) and only the two largest survive: <strong>" + top[0].name + "</strong> (" + top[0].pct + "%) and <strong>" + top[1].name + "</strong> (" + top[1].pct + "%). " +
+        (top[0].g === top[1].g
+          ? "Both winners are in the same department: specialists collaborating on their home turf."
+          : "The winners come from two different departments: the detail view and the big-picture view each earned one slot.");
+    }
+  ];
+  var pgState = { ex: 2, step: 0 };
+
+  function softmax(arr) {
+    var m = Math.max.apply(null, arr);
+    var exps = arr.map(function (v) { return Math.exp(v - m); });
+    var sum = exps.reduce(function (a, b) { return a + b; }, 0);
+    return exps.map(function (e) { return e / sum; });
+  }
+
+  function pgBuild() {
+    var wrap = $("pg-groups");
+    wrap.innerHTML = "";
+    for (var g = 0; g < 3; g++) {
+      var col = document.createElement("div");
+      col.className = "pg-col";
+      col.dataset.g = g;
+      col.innerHTML =
+        '<div class="pg-col-head">' +
+          '<div class="gname"><span class="gdot" aria-hidden="true"></span>' + GROUPS[g] + " dept.</div>" +
+          '<div class="pg-senscore" id="pg-sen-' + g + '"></div>' +
+          '<div class="pg-senbar" aria-hidden="true"><i id="pg-senbar-' + g + '"></i></div>' +
+        "</div>" +
+        '<div class="pg-cells" id="pg-cells-' + g + '"></div>';
+      wrap.appendChild(col);
+      var cells = col.querySelector(".pg-cells");
+      for (var m = 0; m < 4; m++) {
+        var cell = document.createElement("div");
+        cell.className = "pg-cell";
+        cell.id = "pg-cell-" + (g * 4 + m);
+        cell.innerHTML = '<span class="ename">Expert ' + (g + 1) + "." + (m + 1) + '</span><span class="escore"></span>';
+        cells.appendChild(cell);
+      }
+    }
+  }
+
+  function pgRender() {
+    var ex = EXAMPLES[pgState.ex];
+    var step = pgState.step;
+
+    /* sentence strip */
+    var sent = $("pg-sentence");
+    sent.innerHTML = "";
+    ex.words.forEach(function (w, i) {
+      var s = document.createElement("span");
+      s.className = "pg-word" + (i === ex.focus ? " focus" : "");
+      s.textContent = w;
+      sent.appendChild(s);
+      sent.appendChild(document.createTextNode(" "));
+    });
+
+    var combined = ex.tok.map(function (t, i) { return ex.sen[Math.floor(i / 4)] * t; });
+    var probs = softmax(combined);
+    var order = probs.map(function (p, i) { return [p, i]; }).sort(function (a, b) { return b[0] - a[0]; });
+    var topIdx = [order[0][1], order[1][1]];
+    var topShare = order[0][0] + order[1][0];
+    var top = topIdx.map(function (i) {
+      return { i: i, g: Math.floor(i / 4),
+               name: GROUPS[Math.floor(i / 4)] + " expert " + (Math.floor(i / 4) + 1) + "." + (i % 4 + 1),
+               pct: Math.round(probs[i] / topShare * 100) };
+    });
+    if (top[0].pct + top[1].pct !== 100) top[1].pct = 100 - top[0].pct;
+
+    /* column heads */
+    for (var g = 0; g < 3; g++) {
+      var senEl = $("pg-sen-" + g);
+      var barEl = $("pg-senbar-" + g);
+      if (step >= 1) {
+        senEl.innerHTML = "sentence score <b>" + ex.sen[g].toFixed(1) + "</b>";
+        barEl.style.width = (ex.sen[g] / 2.4 * 100) + "%";
+      } else {
+        senEl.innerHTML = "sentence score: not read yet";
+        barEl.style.width = "0%";
+      }
+    }
+    /* gated tint on columns at step 3+ */
+    document.querySelectorAll(".pg-col").forEach(function (col) {
+      col.classList.toggle("gated", step >= 2);
+    });
+
+    /* cells */
+    for (var i = 0; i < 12; i++) {
+      var cell = $("pg-cell-" + i);
+      var score = cell.querySelector(".escore");
+      cell.classList.remove("dim", "win");
+      if (step === 0) {
+        score.textContent = "";
+      } else if (step === 1) {
+        score.textContent = ex.tok[i].toFixed(1);
+      } else if (step === 2) {
+        score.textContent = combined[i].toFixed(2);
+      } else {
+        var isWin = topIdx.indexOf(i) !== -1;
+        if (isWin) {
+          cell.classList.add("win");
+          score.textContent = (i === topIdx[0] ? top[0].pct : top[1].pct) + "%";
+        } else {
+          cell.classList.add("dim");
+          score.textContent = "off";
+        }
+      }
+    }
+
+    $("pg-caption").innerHTML = PG_CAPTIONS[step](ex, top);
+    $("pg-stepnum").textContent = "Step " + (step + 1) + " of 4";
+    $("pg-back").disabled = step === 0;
+    $("pg-next").disabled = step === 3;
+    document.querySelectorAll("[data-ex]").forEach(function (b) {
+      b.setAttribute("aria-pressed", +b.dataset.ex === pgState.ex);
+    });
+  }
+
+  pgBuild();
+  document.querySelectorAll("[data-ex]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      pgState.ex = +btn.dataset.ex; pgState.step = 0; pgRender();
+    });
+  });
+  $("pg-next").addEventListener("click", function () { if (pgState.step < 3) { pgState.step++; pgRender(); } });
+  $("pg-back").addEventListener("click", function () { if (pgState.step > 0) { pgState.step--; pgRender(); } });
+  pgState.ex = 0; pgRender();
+
+  /* ---------- demo 5: two-stage stepper ---------- */
+  var DOTS = [
+    /* [x, y, cluster] hand-placed in three loose blobs */
+    [ 90,  52, 0], [128,  40, 0], [160,  66, 0], [102,  88, 0], [142, 100, 0], [188,  48, 0], [210,  84, 0], [172, 112, 0],
+    [ 84, 150, 1], [122, 138, 1], [156, 162, 1], [ 98, 182, 1], [140, 192, 1], [190, 146, 1], [206, 178, 1], [168, 208, 1],
+    [ 96, 238, 2], [134, 228, 2], [170, 252, 2], [108, 268, 2], [148, 276, 2], [200, 234, 2], [214, 262, 2], [182, 284, 2]
+  ];
+  var GCOLORS = ["var(--g1)", "var(--g2)", "var(--g3)"];
+  var dotsG = $("stage-dots");
+  DOTS.forEach(function (d) {
+    var c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("cx", d[0]); c.setAttribute("cy", d[1]); c.setAttribute("r", 6);
+    c.setAttribute("class", "st-dot");
+    c.dataset.cluster = d[2];
+    c.setAttribute("fill", "var(--baseline)");
+    dotsG.appendChild(c);
+  });
+  var STAGE_CAPTIONS = [
+    "<strong>Step 1: turn every training sentence into a point.</strong> A pretrained encoder maps each sentence to a position where similar meanings land near each other. Right now nobody knows what the natural groups are.",
+    "<strong>Step 2: let K-means find the natural groups.</strong> A classic clustering algorithm splits the points into N groups by proximity, no labels needed. These clusters are a guess at the hidden subdomains inside the dataset.",
+    "<strong>Step 3 (stage 1): train one department per cluster, in parallel.</strong> Each department sees only its own cluster's data, at a brisk learning rate. Afterward the departments are genuinely different specialists, and all four experts inside a department start as copies of its result.",
+    "<strong>Step 4 (stage 2): put it all together.</strong> Now the routers are added and everything trains jointly on the full dataset at a gentle learning rate, scored by the task plus the two house rules from the next section. The router finally has real specialists to choose between."
+  ];
+  var stageStep = 0;
+  function stageRender() {
+    var fig = $("stage-fig");
+    fig.dataset.step = stageStep + 1;
+    dotsG.querySelectorAll("circle").forEach(function (c) {
+      c.setAttribute("fill", stageStep >= 1 ? GCOLORS[+c.dataset.cluster] : "var(--baseline)");
+    });
+    $("st-boxes").classList.toggle("show", stageStep >= 2);
+    $("st-arrows").classList.toggle("show", stageStep === 2);
+    $("st-joint").classList.toggle("show", stageStep === 3);
+    $("stage-caption").innerHTML = STAGE_CAPTIONS[stageStep];
+    $("stage-stepnum").textContent = "Step " + (stageStep + 1) + " of 4";
+    $("stage-back").disabled = stageStep === 0;
+    $("stage-next").disabled = stageStep === 3;
+  }
+  $("stage-next").addEventListener("click", function () { if (stageStep < 3) { stageStep++; stageRender(); } });
+  $("stage-back").addEventListener("click", function () { if (stageStep > 0) { stageStep--; stageRender(); } });
+  stageRender();
+
+  /* ---------- demo 6: load balance ---------- */
+  var loadBars = $("load-bars");
+  for (var li = 0; li < 4; li++) {
+    var row = document.createElement("div");
+    row.className = "bar-row";
+    row.innerHTML =
+      '<span class="bar-label">Expert ' + (li + 1) + "</span>" +
+      '<div class="bar-track"><div class="bar-fill" id="load-bar-' + li + '"></div></div>' +
+      '<span class="bar-val" id="load-val-' + li + '"></span>';
+    loadBars.appendChild(row);
+  }
+  function setLoad(skew) {
+    var a = skew / 100 * 1.1;
+    var ws = [1.5, 0.5, -0.5, -1.5].map(function (k) { return Math.exp(a * k); });
+    var sum = ws.reduce(function (x, y) { return x + y; }, 0);
+    var F = ws.map(function (w) { return w / sum; });
+    var loss = 4 * F.reduce(function (acc, f) { return acc + f * f; }, 0);
+    F.forEach(function (f, i) {
+      $("load-bar-" + i).style.width = (f * 100) + "%";
+      $("load-val-" + i).textContent = Math.round(f * 100) + "%";
+    });
+    $("load-loss").textContent = loss.toFixed(2);
+    $("load-word").textContent =
+      loss < 1.02 ? "perfectly even (the minimum)" :
+      loss < 1.15 ? "mildly lopsided" :
+      loss < 1.5  ? "clearly lopsided" : "one expert is hoarding the work";
+  }
+  $("load-slider").addEventListener("input", function () { setLoad(+this.value); });
+  setLoad(0);
+
+  /* ---------- demo 7: diversity ---------- */
+  function setDiv(angleDeg) {
+    var rad = angleDeg * Math.PI / 180;
+    var len = 150, ox = 40, oy = 140;
+    var x2 = ox + len * Math.cos(rad);
+    var y2 = oy - len * Math.sin(rad);
+    var g2l = $("div-arrow2").querySelector("line");
+    var g2c = $("div-arrow2").querySelector("circle");
+    g2l.setAttribute("x2", x2); g2l.setAttribute("y2", y2);
+    g2c.setAttribute("cx", x2); g2c.setAttribute("cy", y2);
+    var cos = Math.cos(rad);
+    $("div-loss").textContent = cos.toFixed(2);
+    $("div-word").textContent =
+      cos > 0.9 ? "nearly clones" :
+      cos > 0.5 ? "quite similar" :
+      cos > 0.1 ? "somewhat related" :
+      cos > -0.1 ? "independent jobs" : "actively opposite";
+  }
+  $("div-slider").addEventListener("input", function () { setDiv(+this.value); });
+  setDiv(24);
+
+  /* ---------- results chart ---------- */
+  var RESULTS = [
+    { name: "Base model (no tuning)", id: 52.5, ood: 65.8, hero: false },
+    { name: "LoRA",                   id: 73.9, ood: 61.9, hero: false },
+    { name: "MixLoRA",                id: 76.0, ood: 61.0, hero: false },
+    { name: "HydraLoRA",              id: 77.3, ood: 62.9, hero: false },
+    { name: "HiMoLE",                 id: 77.9, ood: 65.3, hero: true }
+  ];
+  var chart = $("results-chart");
+  RESULTS.forEach(function (r) {
+    var g = document.createElement("div");
+    g.className = "res-group";
+    g.innerHTML =
+      '<div class="res-name' + (r.hero ? " hero-row" : "") + '">' + r.name + "</div>" +
+      '<div class="res-pair">' +
+        '<div class="bar-row" title="' + r.name + ", familiar (ID): " + r.id.toFixed(1) + ' F1">' +
+          '<span class="bar-tag">ID</span>' +
+          '<div class="bar-track"><div class="bar-fill id-bar" style="width:' + r.id + '%"></div></div>' +
+          '<span class="bar-val">' + r.id.toFixed(1) + "</span></div>" +
+        '<div class="bar-row" title="' + r.name + ", unfamiliar (OOD): " + r.ood.toFixed(1) + ' F1">' +
+          '<span class="bar-tag">OOD</span>' +
+          '<div class="bar-track"><div class="bar-fill ood-bar" style="width:' + r.ood + '%"></div></div>' +
+          '<span class="bar-val">' + r.ood.toFixed(1) + "</span></div>" +
+      "</div>";
+    chart.appendChild(g);
+  });
+})();
+</script>
+</body>
+</html>

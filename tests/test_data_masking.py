@@ -1,4 +1,4 @@
-"""Tests for prompt construction and loss masking. Fail until the TODOs in data/squad.py are filled."""
+"""Tests for prompt construction and loss masking."""
 from transformers import AutoTokenizer
 
 from himole.data.squad import build_prompt, format_example

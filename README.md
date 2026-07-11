@@ -4,10 +4,9 @@ A learning-focused reimplementation of **HiMoLE** (Hierarchical Mixture of LoRA 
 See [CLAUDE.md](CLAUDE.md) for the method overview and [docs/superpowers/](docs/superpowers/)
 for the per-build design specs and plans.
 
-This repo is built **bit by bit**. The code is a *scaffold*: the framework is written and
-commented, and the pedagogically-critical lines are left as `# TODO` (they raise
-`NotImplementedError`) for you to fill in. Tests are written up front and **fail** until you
-fill the matching TODO.
+This repo is built **bit by bit**. The plain-LoRA baseline and the HiMoLE two-stage
+implementation are runnable; unit tests cover prompt masking, metrics, routing, losses,
+patching, clustering, and one-step Stage-1/Stage-2 training.
 
 ## Build 1 — plain-LoRA baseline (EQA / SQuAD)
 
@@ -20,37 +19,39 @@ Qwen2.5-7B in place of Llama-2-7B (rank 80 / alpha 160).
 pip install -r requirements.txt
 ```
 
-### Run the tests (they will fail until you fill the TODOs)
+### Run the tests
 ```bash
 pytest -v
 ```
 
-### Fill the TODOs in this order
-1. `himole/data/squad.py` → `build_prompt`, `format_example` → `pytest tests/test_data_masking.py`
-2. `himole/eval/metrics.py` → `normalize_answer` / `exact_match` / `rouge2` / `score_batch` → `pytest tests/test_metrics.py`
-3. `himole/model/baseline_lora.py` → `attach_lora` (the `LoraConfig`)
-4. `himole/train/loop.py` → the forward/backward/optimizer step
-5. `himole/data/newsqa.py` → the OOD loader
-
-The notebook `notebooks/01_baseline_lora.ipynb` walks through all of these on a tiny model.
+The notebook `notebooks/01_baseline_lora.ipynb` walks through the baseline components on a tiny model.
 
 ### Smoke test (tiny model, seconds, CPU-friendly)
 ```bash
 python scripts/train_baseline.py --tiny --steps 5 --samples 8
 ```
 
-### Real run (server, after filling TODOs)
+### Real run (server)
 Set `use_tiny=False` (the default) and run:
 ```bash
 python scripts/train_baseline.py
 ```
+
+## HiMoLE two-stage run
+
+```bash
+python scripts/train_himole.py --tiny --steps 5 --stage1-steps 5 --samples 8
+```
+
+The full run requires CUDA and uses DeBERTa-v3-large for Stage-1 clustering. The tiny mode uses
+the tiny base model as the clustering encoder for a practical smoke test.
 
 ## Layout
 ```
 himole/        core package (config, data, model, train, eval)
 notebooks/     teaching walkthrough(s)
 scripts/       entry point(s) for real runs
-tests/         unit tests (fail until TODOs are filled)
+tests/         unit tests
 docs/          design specs + implementation plans
 paper/         the source paper + notes
 ```

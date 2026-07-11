@@ -41,9 +41,9 @@ def generate_answers(model, tokenizer, prompts, max_new_tokens=32, batch_size=16
     return outs
 
 
-def evaluate(model, tokenizer, eval_pairs, cutoff_len=1024):
+def evaluate(model, tokenizer, eval_pairs, cutoff_len=1024, batch_size=4):
     """Generate answers for eval_pairs and return {'em','rouge2'}."""
     prompts = [e["prompt"] for e in eval_pairs]
     golds = [e["gold"] for e in eval_pairs]
-    preds = generate_answers(model, tokenizer, prompts, cutoff_len=cutoff_len)
+    preds = generate_answers(model, tokenizer, prompts, batch_size=batch_size, cutoff_len=cutoff_len)
     return score_batch(preds, golds)

@@ -8,12 +8,6 @@ from himole.data.squad import build_prompt
 
 def load_newsqa(tokenizer, cfg):
     """Return a list of {"prompt", "gold"} dicts for OOD evaluation."""
-    # TODO: pick a NewsQA source on the Hub (e.g. "lucadiliello/newsqa" or a mirror),
-    #       map each example to {"prompt": build_prompt(context, question),
-    #       "gold": first answer text}. Respect cfg.max_eval_samples for periodic eval.
-    # Schema verified via HF datasets-server: columns are context (str),
-    # question (str), answers (Sequence[str], gold text) and labels (char spans,
-    # unused here). Splits are train/validation; every row has exactly one answer.
     from datasets import load_dataset
     dataset = load_dataset(cfg.ood_dataset, split="validation")
     if cfg.max_eval_samples is not None:
