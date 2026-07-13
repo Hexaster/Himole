@@ -19,3 +19,6 @@ include = ["himole*"]
 # Reuse the existing requirements.txt as the dependency list.
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

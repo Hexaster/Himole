@@ -16,12 +16,12 @@ Qwen2.5-7B in place of Llama-2-7B (rank 80 / alpha 160).
 
 ### Install
 ```bash
-pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 ### Run the tests
 ```bash
-pytest -v
+python -m pytest -v
 ```
 
 The notebook `notebooks/01_baseline_lora.ipynb` walks through the baseline components on a tiny model.
