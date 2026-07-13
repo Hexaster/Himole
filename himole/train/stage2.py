@@ -5,7 +5,6 @@ import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
 
-from himole.eval.generate import evaluate
 from himole.model.layer import HiMoLEFFNLayer
 from himole.train.loop import accumulation_steps, collate, prepare_model_for_adapter_training
 from himole.train.losses import auxiliary_load_balancing_loss, combine_stage2_losses, diversity_loss
@@ -66,6 +65,8 @@ def train_himole_stage2(model, tokenizer, train_ds, cfg, val_eval_pairs=None):
                 layer.last_kcg_outputs = None
 
             if val_eval_pairs and step % cfg.eval_every == 0:
+                from himole.eval.generate import evaluate
+
                 metrics = evaluate(
                     model,
                     tokenizer,

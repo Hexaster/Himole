@@ -11,7 +11,7 @@ from himole.model.layer import HiMoLEFFNLayer
 from himole.model.patching import attach_himole_to_model
 from himole.model.routing import HierarchicalRouter
 from himole.train.losses import auxiliary_load_balancing_loss, combine_stage2_losses, diversity_loss
-from himole.train.stage1 import train_single_kcg
+from himole.train.stage1 import initialize_kcgs, train_single_kcg
 from himole.train.stage2 import train_himole_stage2
 
 
@@ -182,3 +182,26 @@ def test_stage_trainers_run_one_step_on_a_tiny_causal_model():
     assert model.gradient_checkpointing_enabled
     assert model.input_grads_enabled
     assert not model.config.use_cache
+
+
+def test_initialize_kcgs_builds_cluster_subsets(monkeypatch):
+    cfg = HimoleConfig(
+        num_kcgs=1,
+        experts_per_kcg=2,
+        top_k=1,
+        lora_r=2,
+        max_steps=1,
+        stage1_max_steps=1,
+        batch_size=1,
+        micro_batch_size=1,
+    )
+    model = _TinyCausalModel(cfg)
+    monkeypatch.setattr(
+        "himole.train.stage1.embed_training_examples",
+        lambda examples, config, **kwargs: torch.ones(len(examples), 2),
+    )
+
+    state = initialize_kcgs(model, _DATASET, cfg, tokenizer=_Tokenizer())
+
+    assert set(state) == {0}
+    assert set(state[0]) == {"projection"}

@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from himole.model.layer import HiMoLEFFNLayer
 from himole.train.loop import accumulation_steps, collate, prepare_model_for_adapter_training
 
-from himole.data.clustering import cluster_training_examples, embed_training_examples
+from himole.data.clustering import build_cluster_subsets, cluster_training_examples, embed_training_examples
 
 
 def _himole_layers(model):

@@ -8,9 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from tqdm.auto import tqdm
-from peft import get_peft_model_state_dict, set_peft_model_state_dict
 
-from himole.eval.generate import evaluate
 from himole.utils import get_logger
 
 log = get_logger("train")
@@ -47,6 +45,9 @@ def collate(batch, tokenizer):
 
 def train(model, tokenizer, train_ds, val_eval_pairs, cfg):
     """Run the LoRA fine-tuning loop. Returns the best eval metrics seen."""
+    from peft import get_peft_model_state_dict, set_peft_model_state_dict
+    from himole.eval.generate import evaluate
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
     if device == "cuda":

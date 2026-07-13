@@ -5,17 +5,6 @@ Usage:
     python scripts/train_baseline.py --tiny --steps 5 --samples 8   # smoke test
 """
 import argparse
-import torch
-
-from datasets import load_dataset
-
-from himole.config import BaselineConfig
-from himole.utils import set_seed
-from himole.model.baseline_lora import load_tokenizer, load_base_model, attach_lora
-from himole.data.squad import load_squad, build_prompt
-from himole.data.newsqa import load_newsqa
-from himole.train.loop import train
-from himole.eval.generate import evaluate
 
 
 def require_full_run_cuda(cfg, device: str) -> None:
@@ -24,12 +13,28 @@ def require_full_run_cuda(cfg, device: str) -> None:
         raise RuntimeError("CUDA is required for the full Qwen2.5-7B run; use --tiny for CPU smoke tests.")
 
 
-def main():
+def parse_args(argv=None):
+    """Parse baseline training options."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--tiny", action="store_true", help="use tiny-gpt2 for a fast smoke test")
     ap.add_argument("--steps", type=int, default=None)
     ap.add_argument("--samples", type=int, default=None)
-    args = ap.parse_args()
+    return ap.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
+
+    import torch
+    from datasets import load_dataset
+
+    from himole.config import BaselineConfig
+    from himole.utils import set_seed
+    from himole.model.baseline_lora import load_tokenizer, load_base_model, attach_lora
+    from himole.data.squad import load_squad, build_prompt
+    from himole.data.newsqa import load_newsqa
+    from himole.train.loop import train
+    from himole.eval.generate import evaluate
 
     cfg = BaselineConfig()
     if args.tiny:
