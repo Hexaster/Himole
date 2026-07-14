@@ -262,6 +262,32 @@ def _load_group_checkpoint(path, expected_signature):
     return payload["state"]
 
 
+def load_completed_kcgs(cfg):
+    """Load a complete compatible Stage-1 checkpoint set without reclustering."""
+    state_by_group = {}
+    output_dir = Path(cfg.stage1_output_dir)
+    for group_id in range(cfg.num_kcgs):
+        path = output_dir / f"kcg_{group_id}.pt"
+        if not path.is_file():
+            return None
+        payload = torch.load(path, map_location="cpu", weights_only=True)
+        signature = payload.get("signature")
+        if not isinstance(signature, dict):
+            return None
+        if "train_size" not in signature or "validation_size" not in signature:
+            return None
+        expected = _checkpoint_signature(
+            cfg,
+            group_id,
+            signature["train_size"],
+            signature["validation_size"],
+        )
+        if signature != expected:
+            return None
+        state_by_group[group_id] = payload["state"]
+    return state_by_group
+
+
 def _train_kcg_worker(
     local_rank,
     group_ids,
@@ -307,6 +333,11 @@ def initialize_kcgs_parallel(
 ):
     """Train KCGs concurrently, using one spawned process and GPU per KCG."""
     cfg.validate()
+    if resume:
+        completed = load_completed_kcgs(cfg)
+        if completed is not None:
+            tqdm.write("Stage 1: loaded all completed KCG checkpoints; skipping clustering and training")
+            return completed
     if validation_dataset is None:
         raise ValueError("validation_dataset is required for parallel Stage 1 early stopping")
     if torch.cuda.device_count() < cfg.num_kcgs:
@@ -410,6 +441,7 @@ __all__ = [
     "apply_stage1_initializations",
     "initialize_kcgs",
     "initialize_kcgs_parallel",
+    "load_completed_kcgs",
     "partition_stage1_datasets",
     "train_single_kcg",
 ]

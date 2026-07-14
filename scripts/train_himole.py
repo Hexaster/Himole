@@ -16,6 +16,12 @@ def parse_args(argv=None):
         help="examples per GPU pass; must divide the effective batch size of 16",
     )
     parser.add_argument(
+        "--stage2-micro-batch-size",
+        type=int,
+        default=None,
+        help="override examples per GPU pass only after Stage 1 is loaded or completed",
+    )
+    parser.add_argument(
         "--sequential-stage1",
         action="store_true",
         help="train KCGs on one GPU even when enough GPUs are visible",
@@ -35,6 +41,11 @@ def parse_args(argv=None):
         "--stage1-only",
         action="store_true",
         help="initialize KCG experts and stop before Stage 2",
+    )
+    stage_mode.add_argument(
+        "--load-stage1-checkpoints",
+        action="store_true",
+        help="require completed compatible KCG checkpoints and start at Stage 2",
     )
     return parser.parse_args(argv)
 
@@ -56,6 +67,7 @@ def main(argv=None):
         apply_stage1_initializations,
         initialize_kcgs,
         initialize_kcgs_parallel,
+        load_completed_kcgs,
     )
     from himole.train.stage2 import train_himole_stage2
     from himole.utils import set_seed
@@ -83,19 +95,36 @@ def main(argv=None):
     tokenizer = load_tokenizer(cfg)
     train_ds, validation_ds = load_squad(tokenizer, cfg)
 
+    parallel_state = None
+    if (args.resume_stage1 or args.load_stage1_checkpoints) and not args.skip_stage1:
+        parallel_state = load_completed_kcgs(cfg)
+        if parallel_state is not None:
+            print("Stage 1: loaded completed KCG checkpoints; skipping clustering and training")
+        elif args.load_stage1_checkpoints:
+            raise RuntimeError(
+                "--load-stage1-checkpoints requires compatible kcg_0.pt through kcg_2.pt; "
+                "use the same Stage-1 arguments that created them"
+            )
+
     parallel_stage1 = (
-        not cfg.use_tiny
+        parallel_state is None
+        and not cfg.use_tiny
         and not args.skip_stage1
         and not args.sequential_stage1
         and torch.cuda.device_count() >= cfg.num_kcgs
     )
-    if not cfg.use_tiny and not args.skip_stage1 and not args.sequential_stage1 and not parallel_stage1:
+    if (
+        parallel_state is None
+        and not cfg.use_tiny
+        and not args.skip_stage1
+        and not args.sequential_stage1
+        and not parallel_stage1
+    ):
         print(
             f"Stage 1: {torch.cuda.device_count()} CUDA device(s) visible; "
             f"falling back to sequential training because {cfg.num_kcgs} are required"
         )
 
-    parallel_state = None
     if parallel_stage1:
         print(f"Stage 1: training {cfg.num_kcgs} KCGs in parallel on {cfg.num_kcgs} GPUs")
         parallel_state = initialize_kcgs_parallel(
@@ -104,9 +133,9 @@ def main(argv=None):
             cfg,
             resume=args.resume_stage1,
         )
-        if args.stage1_only:
-            print("HIMOLE STAGE 1 RESULT:", {group_id: sorted(state) for group_id, state in parallel_state.items()})
-            return
+    if args.stage1_only and parallel_state is not None:
+        print("HIMOLE STAGE 1 RESULT:", {group_id: sorted(state) for group_id, state in parallel_state.items()})
+        return
 
     model = attach_himole_to_model(load_base_model(cfg).to(device), cfg)
 
@@ -142,6 +171,10 @@ def main(argv=None):
             tokenizer=tokenizer,
             validation_dataset=validation_ds,
         )
+    if args.stage2_micro_batch_size is not None:
+        cfg.micro_batch_size = args.stage2_micro_batch_size
+        cfg.validate()
+        print(f"Stage 2: using micro-batch size {cfg.micro_batch_size}")
     result = train_himole_stage2(model, tokenizer, train_ds, cfg, val_eval_pairs=id_pairs)
     print("HIMOLE TRAIN RESULT:", result)
     print("HIMOLE ID (SQuAD):", evaluate(model, tokenizer, id_pairs, cutoff_len=cfg.cutoff_len, batch_size=cfg.eval_batch_size))

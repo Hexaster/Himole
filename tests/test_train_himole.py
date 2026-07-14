@@ -23,11 +23,29 @@ def test_micro_batch_size_is_configurable():
     assert parse_args(["--micro-batch-size", "4"]).micro_batch_size == 4
 
 
+def test_stage2_can_use_a_smaller_micro_batch():
+    args = parse_args(["--micro-batch-size", "4", "--stage2-micro-batch-size", "1"])
+
+    assert args.micro_batch_size == 4
+    assert args.stage2_micro_batch_size == 1
+
+
 def test_stage1_parallelism_can_be_resumed_or_disabled():
     args = parse_args(["--resume-stage1", "--sequential-stage1"])
 
     assert args.resume_stage1
     assert args.sequential_stage1
+
+
+def test_completed_stage1_checkpoints_have_a_strict_load_mode():
+    args = parse_args(["--load-stage1-checkpoints", "--stage2-micro-batch-size", "1"])
+
+    assert args.load_stage1_checkpoints
+
+
+def test_loading_stage1_checkpoints_conflicts_with_other_stage_modes():
+    with pytest.raises(SystemExit):
+        parse_args(["--load-stage1-checkpoints", "--skip-stage1"])
 
 
 def test_stage1_only_flag_is_available_for_initialization_runs():
