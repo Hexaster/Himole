@@ -19,6 +19,17 @@ def test_stage1_runs_by_default():
     assert not parse_args([]).skip_stage1
 
 
+def test_micro_batch_size_is_configurable():
+    assert parse_args(["--micro-batch-size", "4"]).micro_batch_size == 4
+
+
+def test_stage1_parallelism_can_be_resumed_or_disabled():
+    args = parse_args(["--resume-stage1", "--sequential-stage1"])
+
+    assert args.resume_stage1
+    assert args.sequential_stage1
+
+
 def test_stage1_only_flag_is_available_for_initialization_runs():
     args = parse_args(["--tiny", "--stage1-only", "--samples", "24", "--steps", "3"])
 

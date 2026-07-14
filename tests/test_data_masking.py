@@ -1,7 +1,8 @@
 """Tests for prompt construction and loss masking."""
 from transformers import AutoTokenizer
 
-from himole.data.squad import build_prompt, format_example
+from himole.config import HimoleConfig
+from himole.data.squad import build_prompt, format_example, load_squad
 
 TOK = AutoTokenizer.from_pretrained("sshleifer/tiny-gpt2")
 if TOK.pad_token is None:
@@ -29,3 +30,29 @@ def test_labels_mask_prompt_tokens():
     for i, l in enumerate(out["labels"]):
         if l != -100:
             assert l == out["input_ids"][i]
+
+
+def test_squad_loader_uses_separate_training_and_validation_caps(monkeypatch):
+    class Split(list):
+        column_names = ["context", "question", "answers"]
+
+        def select(self, indices):
+            return Split(self[index] for index in indices)
+
+        def map(self, function, remove_columns):
+            return Split(function(example) for example in self)
+
+    examples = Split(
+        {"context": "context", "question": "question", "answers": {"text": ["answer"]}}
+        for _ in range(10)
+    )
+    monkeypatch.setattr(
+        "himole.data.squad.load_dataset",
+        lambda name: {"train": examples, "validation": examples},
+    )
+    cfg = HimoleConfig(max_train_samples=3, max_eval_samples=2)
+
+    train, validation = load_squad(TOK, cfg)
+
+    assert len(train) == 3
+    assert len(validation) == 2

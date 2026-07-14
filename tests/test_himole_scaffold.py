@@ -4,14 +4,19 @@ from types import SimpleNamespace
 import torch
 
 from himole.config import HimoleConfig
-from himole.data.clustering import build_cluster_subsets, cluster_training_examples
+from himole.data.clustering import (
+    assign_to_training_clusters,
+    build_cluster_subsets,
+    cluster_training_examples,
+    fit_training_clusters,
+)
 from himole.eval.load_balance import maxvio_global
 from himole.model.experts import KnowledgeCompetitionGroup, LoRAExpert
 from himole.model.layer import HiMoLEFFNLayer
 from himole.model.patching import attach_himole_to_model
 from himole.model.routing import HierarchicalRouter
 from himole.train.losses import auxiliary_load_balancing_loss, combine_stage2_losses, diversity_loss
-from himole.train.stage1 import initialize_kcgs, train_single_kcg
+from himole.train.stage1 import initialize_kcgs, initialize_kcgs_parallel, train_single_kcg
 from himole.train.stage2 import train_himole_stage2
 
 
@@ -158,6 +163,16 @@ def test_deterministic_kmeans_and_subset_builder():
     assert sorted(len(subset) for subset in subsets) == [2, 2]
 
 
+def test_validation_examples_use_nearest_training_centroid():
+    cfg = HimoleConfig(num_kcgs=2, experts_per_kcg=1, top_k=1)
+    train = torch.tensor([[0.0], [0.2], [9.8], [10.0]])
+    train_ids, centers = fit_training_clusters(train, cfg)
+    validation_ids = assign_to_training_clusters(torch.tensor([[0.1], [9.9]]), centers)
+
+    assert train_ids.tolist() == [0, 0, 1, 1]
+    assert validation_ids.tolist() == [0, 1]
+
+
 def test_stage_trainers_run_one_step_on_a_tiny_causal_model():
     cfg = HimoleConfig(
         num_kcgs=1,
@@ -184,6 +199,43 @@ def test_stage_trainers_run_one_step_on_a_tiny_causal_model():
     assert not model.config.use_cache
 
 
+def test_stage1_early_stops_when_validation_loss_does_not_improve():
+    class CountingTinyModel(_TinyCausalModel):
+        def __init__(self, config):
+            super().__init__(config)
+            self.forward_calls = 0
+
+        def forward(self, *args, **kwargs):
+            self.forward_calls += 1
+            return super().forward(*args, **kwargs)
+
+    cfg = HimoleConfig(
+        num_kcgs=1,
+        experts_per_kcg=1,
+        top_k=1,
+        lora_r=2,
+        stage1_lr=0.0,
+        stage1_max_steps=10,
+        eval_every=1,
+        early_stop_patience=2,
+        batch_size=1,
+        micro_batch_size=1,
+        eval_batch_size=1,
+    )
+    model = CountingTinyModel(cfg)
+
+    train_single_kcg(
+        model,
+        _DATASET,
+        cfg,
+        group_id=0,
+        tokenizer=_Tokenizer(),
+        validation_dataset=_DATASET,
+    )
+
+    assert model.forward_calls == 6  # Three train and three validation forwards.
+
+
 def test_initialize_kcgs_builds_cluster_subsets(monkeypatch):
     cfg = HimoleConfig(
         num_kcgs=1,
@@ -205,3 +257,38 @@ def test_initialize_kcgs_builds_cluster_subsets(monkeypatch):
 
     assert set(state) == {0}
     assert set(state[0]) == {"projection"}
+
+
+def test_parallel_stage1_collects_and_resumes_worker_checkpoints(monkeypatch, tmp_path):
+    cfg = HimoleConfig(
+        num_kcgs=2,
+        experts_per_kcg=1,
+        top_k=1,
+        stage1_max_steps=1,
+        batch_size=1,
+        micro_batch_size=1,
+        stage1_output_dir=str(tmp_path),
+    )
+    subsets = [[_DATASET[0]], [_DATASET[0]]]
+    monkeypatch.setattr(torch.cuda, "device_count", lambda: 2)
+    monkeypatch.setattr(
+        "himole.train.stage1.partition_stage1_datasets",
+        lambda *args, **kwargs: (subsets, subsets),
+    )
+    launches = []
+
+    def fake_launcher(worker, args, nprocs, join):
+        launches.append(nprocs)
+        _, _, _, _, paths, signatures = args
+        for path, signature in zip(paths, signatures):
+            torch.save(
+                {"signature": signature, "state": {"projection": {"lora_a.weight": torch.ones(1)}}},
+                path,
+            )
+
+    first = initialize_kcgs_parallel(_DATASET, _DATASET, cfg, launcher=fake_launcher)
+    second = initialize_kcgs_parallel(_DATASET, _DATASET, cfg, resume=True, launcher=fake_launcher)
+
+    assert launches == [2]
+    assert set(first) == {0, 1}
+    assert set(second) == {0, 1}

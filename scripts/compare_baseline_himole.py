@@ -68,7 +68,7 @@ def main(argv=None):
 
     set_seed(baseline_cfg.seed)
     tokenizer = load_tokenizer(baseline_cfg)
-    train_ds, _ = load_squad(tokenizer, baseline_cfg)
+    train_ds, validation_ds = load_squad(tokenizer, baseline_cfg)
     raw_val = load_dataset(baseline_cfg.id_dataset)["validation"]
     raw_val = raw_val.select(range(min(len(raw_val), args.samples)))
     id_pairs = [
@@ -105,7 +105,13 @@ def main(argv=None):
 
     set_seed(himole_cfg.seed)
     himole_model = attach_himole_to_model(load_base_model(himole_cfg).to(device), himole_cfg)
-    initialize_kcgs(himole_model, train_ds, himole_cfg, tokenizer=tokenizer)
+    initialize_kcgs(
+        himole_model,
+        train_ds,
+        himole_cfg,
+        tokenizer=tokenizer,
+        validation_dataset=validation_ds,
+    )
     himole_result = train_himole_stage2(himole_model, tokenizer, train_ds, himole_cfg, val_eval_pairs=id_pairs)
     report["models"]["himole"] = {
         "id": evaluate(himole_model, tokenizer, id_pairs, himole_cfg.cutoff_len, himole_cfg.eval_batch_size),

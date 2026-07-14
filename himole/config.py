@@ -110,5 +110,9 @@ class HimoleConfig:
             raise ValueError("diversity_every_n_layers must be positive")
         if self.batch_size <= 0 or self.micro_batch_size <= 0:
             raise ValueError("batch_size and micro_batch_size must be positive")
+        if self.batch_size % self.micro_batch_size:
+            raise ValueError("micro_batch_size must divide batch_size")
         if self.eval_batch_size <= 0:
             raise ValueError("eval_batch_size must be positive")
+        if self.eval_every <= 0 or self.early_stop_patience <= 0:
+            raise ValueError("eval_every and early_stop_patience must be positive")

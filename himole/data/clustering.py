@@ -77,8 +77,8 @@ def embed_training_examples(examples, cfg, encoder=None, tokenizer=None):
     return result
 
 
-def cluster_training_examples(embeddings, cfg):
-    """Assign each embedded example to one of cfg.num_kcgs K-means clusters."""
+def fit_training_clusters(embeddings, cfg):
+    """Return deterministic K-means assignments and their final centroids."""
     cfg.validate()
     embeddings = torch.as_tensor(embeddings, dtype=torch.float32)
     if embeddings.ndim != 2:
@@ -101,7 +101,25 @@ def cluster_training_examples(embeddings, cfg):
         if torch.allclose(next_centers, centers):
             break
         centers = next_centers
+    cluster_ids = torch.cdist(embeddings, centers).argmin(dim=1)
+    return cluster_ids, centers
+
+
+def cluster_training_examples(embeddings, cfg):
+    """Assign each embedded training example to a K-means cluster."""
+    cluster_ids, _ = fit_training_clusters(embeddings, cfg)
     return cluster_ids
+
+
+def assign_to_training_clusters(embeddings, centers):
+    """Assign validation embeddings to their nearest training centroid."""
+    embeddings = torch.as_tensor(embeddings, dtype=torch.float32)
+    centers = torch.as_tensor(centers, dtype=torch.float32)
+    if embeddings.ndim != 2 or centers.ndim != 2:
+        raise ValueError("embeddings and centers must both be two-dimensional")
+    if embeddings.shape[1] != centers.shape[1]:
+        raise ValueError("embeddings and centers must have the same feature dimension")
+    return torch.cdist(embeddings, centers).argmin(dim=1)
 
 
 def build_cluster_subsets(examples, cluster_ids, cfg):
@@ -111,9 +129,11 @@ def build_cluster_subsets(examples, cluster_ids, cfg):
     cfg.validate()
     if len(examples) != len(cluster_ids):
         raise ValueError("examples and cluster_ids must have the same length")
-    subsets = [[] for _ in range(cfg.num_kcgs)]
-    for example, cluster_id in zip(examples, cluster_ids):
+    indices = [[] for _ in range(cfg.num_kcgs)]
+    for index, cluster_id in enumerate(cluster_ids):
         if not 0 <= int(cluster_id) < cfg.num_kcgs:
             raise ValueError("cluster_ids must be between 0 and num_kcgs - 1")
-        subsets[int(cluster_id)].append(example)
-    return subsets
+        indices[int(cluster_id)].append(index)
+    if hasattr(examples, "select"):
+        return [examples.select(cluster_indices) for cluster_indices in indices]
+    return [[examples[index] for index in cluster_indices] for cluster_indices in indices]

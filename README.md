@@ -46,6 +46,11 @@ python scripts/train_himole.py --tiny --steps 5 --stage1-steps 5 --samples 8
 The full run requires CUDA and uses DeBERTa-v3-large for Stage-1 clustering. The tiny mode uses
 the tiny base model as the clustering encoder for a practical smoke test.
 
+When at least three CUDA devices are visible, the full run trains the three Stage-1 KCGs in
+parallel, one process per GPU, and early-stops each KCG on validation loss for its assigned SQuAD cluster.
+Use `--resume-stage1` to reuse compatible completed KCG checkpoints, or
+`--sequential-stage1` to force the single-GPU path.
+
 ## Layout
 ```
 himole/        core package (config, data, model, train, eval)

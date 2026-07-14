@@ -49,7 +49,8 @@ def load_squad(tokenizer, cfg):
     val = ds["validation"]
     if cfg.max_train_samples:                       # smoke-test shortcut
         train = train.select(range(cfg.max_train_samples))
-        val = val.select(range(min(len(val), cfg.max_train_samples)))
+    if cfg.max_eval_samples:
+        val = val.select(range(min(len(val), cfg.max_eval_samples)))
     fn = lambda ex: format_example(ex, tokenizer, cfg.cutoff_len)
     cols = train.column_names
     return (train.map(fn, remove_columns=cols), val.map(fn, remove_columns=cols))
