@@ -2,6 +2,7 @@
 import torch
 from torch.optim import AdamW
 from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 
 from himole.model.layer import HiMoLEFFNLayer
 from himole.train.loop import accumulation_steps, collate, prepare_model_for_adapter_training
@@ -47,19 +48,23 @@ def train_single_kcg(model, cluster_dataset, cfg, group_id: int, tokenizer=None)
     accum = accumulation_steps(cfg)
     model.train()
     step, micro = 0, 0
-    while step < max_steps:
-        for batch in loader:
-            batch = {name: value.to(device) for name, value in batch.items()}
-            loss = model(**batch).loss / accum
-            loss.backward()
-            micro += 1
-            if micro % accum:
-                continue
-            optimizer.step()
-            optimizer.zero_grad(set_to_none=True)
-            step += 1
-            if step >= max_steps:
-                break
+    description = f"stage 1: KCG {group_id + 1}/{cfg.num_kcgs}"
+    with tqdm(total=max_steps, desc=description, unit="step") as progress:
+        while step < max_steps:
+            for batch in loader:
+                batch = {name: value.to(device) for name, value in batch.items()}
+                loss = model(**batch).loss / accum
+                loss.backward()
+                micro += 1
+                if micro % accum:
+                    continue
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
+                step += 1
+                progress.update(1)
+                progress.set_postfix(loss=f"{loss.item() * accum:.4f}")
+                if step >= max_steps:
+                    break
 
     initialization = {}
     for name, layer in layers:
@@ -74,6 +79,7 @@ def initialize_kcgs(model, train_dataset, cfg, tokenizer=None, encoder=None, enc
     cfg.validate()
     examples = list(train_dataset)
     embeddings = embed_training_examples(examples, cfg, encoder=encoder, tokenizer=encoder_tokenizer)
+    tqdm.write(f"Stage 1: clustering {len(examples)} examples into {cfg.num_kcgs} KCGs")
     cluster_ids = cluster_training_examples(embeddings, cfg)
     subsets = build_cluster_subsets(examples, cluster_ids.tolist(), cfg)
     if any(not subset for subset in subsets):

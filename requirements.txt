@@ -1,5 +1,6 @@
 torch>=2.0
 transformers>=4.38
+sentencepiece>=0.2.1
 peft>=0.9
 datasets>=2.16
 evaluate>=0.4

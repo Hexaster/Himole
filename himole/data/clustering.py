@@ -6,6 +6,7 @@ subsets, and trains one KCG per cluster before joint routing is learned.
 from collections.abc import Mapping
 
 import torch
+from tqdm.auto import tqdm
 
 
 def _example_text(example) -> str:
@@ -51,7 +52,8 @@ def embed_training_examples(examples, cfg, encoder=None, tokenizer=None):
     texts = [_example_text(example) for example in examples]
     try:
         with torch.no_grad():
-            for start in range(0, len(texts), cfg.clustering_batch_size):
+            batches = range(0, len(texts), cfg.clustering_batch_size)
+            for start in tqdm(batches, desc="stage 1: embeddings", unit="batch"):
                 batch = tokenizer(
                     texts[start:start + cfg.clustering_batch_size],
                     padding=True,
